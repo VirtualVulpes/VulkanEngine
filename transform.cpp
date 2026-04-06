@@ -2,6 +2,10 @@
 
 #include <glm/ext/matrix_transform.hpp>
 
+Transform::Transform(glm::vec3 position, glm::vec3 rotation, glm::vec3 scale) : position(position),
+    rotation(glm::radians(rotation)), scale(scale) {
+}
+
 const glm::mat4& Transform::getModelMatrix() const {
     if (isDirty) recalculateModelMatrix();
 
