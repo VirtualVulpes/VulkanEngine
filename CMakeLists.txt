@@ -103,6 +103,8 @@ add_executable (${TEMPLATE_NAME} main.cpp
         memory.h
         memory.cpp
         transform.cpp
+        Object.h
+        Object.cpp
 )
 
 set_target_properties (${TEMPLATE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEMPLATE_DIR})

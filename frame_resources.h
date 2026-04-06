@@ -2,6 +2,7 @@
 
 #include "mesh.h"
 
+class Object;
 class ImageResource;
 
 struct RenderTarget {
@@ -34,7 +35,7 @@ public:
                              vk::DescriptorSet frameDescriptorSet,
                              RenderTarget renderTarget,
                              uint32_t frameIndex,
-                             const std::vector<Mesh>& meshes) const;
+                             const std::vector<Object>& objects) const;
 
     void resetCommandBuffer() { commandBuffer.reset(); }
 

@@ -3,6 +3,8 @@
 #include <iostream>
 
 #include "constants.h"
+#include "object.h"
+#include "transform.h"
 
 namespace {
     void checkLayers(const vk::raii::Context& context) {
@@ -64,12 +66,14 @@ Engine::Engine() : glfwManager(),
     createImageResources();
     createFrameResources();
 
-    meshes.emplace_back(device, descriptorPool, objectDescriptorSetLayout, 0);
-    meshes.emplace_back(device, descriptorPool, objectDescriptorSetLayout, 1);
-
-    meshes.at(0).getTransform().setPosition({0.0, 0.0, 0.5});
-    meshes.at(0).getTransform().setScale({0.5, 0.5, 0.5});
-    meshes.at(0).getTransform().rotate({0.0, 90.0, -45.0});
+    meshes.emplace_back(device, Shape::Plane);
+    meshes.emplace_back(device, Shape::Cube);
+    Transform transform{};
+    objects.emplace_back(device, descriptorPool, objectDescriptorSetLayout, transform, meshes.at(0), 0);
+    transform.setPosition({0.0f, 0.0f, 0.5f});
+    transform.rotate({0.0f, 90.0f, -45.0f});
+    transform.setScale({0.5f, 0.5f,  0.5f});
+    objects.emplace_back(device, descriptorPool, objectDescriptorSetLayout, transform, meshes.at(1), 1);
 }
 
 void Engine::run() {
@@ -192,7 +196,8 @@ void Engine::update() {
     float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
     lastTime = currentTime;
 
-    meshes.at(1).getTransform().rotate(glm::vec3(0.0f, 0.0f, 90.0f) * deltaTime);
+    objects.at(0).getTransform().rotate(glm::vec3(0.0f, 0.0f, 90.0f) * deltaTime);
+    objects.at(1).getTransform().rotate(glm::vec3(-40.0f, 30.0f, -20.0f) * deltaTime);
 }
 
 void Engine::drawFrame() {
@@ -220,8 +225,8 @@ void Engine::drawFrame() {
     frameData.proj[1][1] *= -1;
     currentFrame.updateFrameData(frameData);
 
-    for (const auto& mesh : meshes) {
-        mesh.updateTransform();
+    for (const auto& object : objects) {
+        object.updateTransform();
     }
 
     device.getDevice().resetFences(*currentFrame.getInFlightFence());
@@ -235,7 +240,7 @@ void Engine::drawFrame() {
     };
 
     currentFrame.recordCommandBuffer(*graphicsPipeline.getPipeline(), *graphicsPipeline.getLayout(),
-                                     *currentFrame.getDescriptorSet(), target, frameIndex, meshes);
+                                     *currentFrame.getDescriptorSet(), target, frameIndex, objects);
 
     vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
     const vk::SubmitInfo submitInfo{

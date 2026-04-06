@@ -1,6 +1,7 @@
 #include "frame_resources.h"
 
 #include "image.h"
+#include "object.h"
 #include "vulkan_device.h"
 
 FrameResources::FrameResources(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
@@ -75,7 +76,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
                                          vk::PipelineLayout pipelineLayout,
                                          vk::DescriptorSet frameDescriptorSet, RenderTarget renderTarget,
                                          uint32_t frameIndex,
-                                         const std::vector<Mesh>& meshes) const {
+                                         const std::vector<Object>& objects) const {
     commandBuffer.begin({});
 
     Image::transitionLayout(
@@ -139,17 +140,17 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         {}
     );
 
-    for (const auto& mesh : meshes) {
-        commandBuffer.bindVertexBuffers(0, *mesh.getVertexBuffer().buffer, {0});
-        commandBuffer.bindIndexBuffer(*mesh.getIndexBuffer().buffer, 0, mesh.getIndexType());
+    for (const auto& object : objects) {
+        commandBuffer.bindVertexBuffers(0, *object.getMesh().getVertexBuffer().buffer, {0});
+        commandBuffer.bindIndexBuffer(*object.getMesh().getIndexBuffer().buffer, 0, object.getMesh().getIndexType());
         commandBuffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             pipelineLayout,
             1,
-            {mesh.getDescriptorSet(frameIndex)},
+            {object.getDescriptorSet(frameIndex)},
             {}
         );
-        commandBuffer.drawIndexed(mesh.getIndexAmount(), 1, 0, 0, 0);
+        commandBuffer.drawIndexed(object.getMesh().getIndexAmount(), 1, 0, 0, 0);
     }
 
     commandBuffer.endRendering();

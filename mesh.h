@@ -3,47 +3,25 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "buffer.h"
-#include "constants.h"
-#include "transform.h"
 #include "vertex.h"
 
 class VulkanDevice;
 
 class Mesh {
 public:
-    explicit Mesh(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
-                  vk::DescriptorSetLayout descriptorSetLayout, uint32_t textureIndex);
+    explicit Mesh(const VulkanDevice& device, const ModelData& modelData);
 
     const BufferAllocation& getVertexBuffer() const { return vertexBuffer; }
     size_t getVertexAmount() const { return vertices.size(); }
     const BufferAllocation& getIndexBuffer() const { return indexBuffer; }
     size_t getIndexAmount() const { return indices.size(); }
     vk::IndexType getIndexType() const { return vk::IndexTypeValue<decltype(indices)::value_type>::value; }
-    const vk::raii::DescriptorSet& getDescriptorSet(uint32_t frameIndex) const { return descriptorSets[frameIndex]; }
-
-
-    const Transform& getTransform() const { return transform; }
-    Transform& getTransform() { return transform; }
-
-    void updateTransform() const;
 
 private:
-    const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-    };
+    const std::vector<Vertex> vertices{};
 
-    const std::vector<uint16_t> indices = {
-        0, 1, 2, 2, 3, 0
-    };
+    const std::vector<uint32_t> indices{};
 
     BufferAllocation vertexBuffer;
     BufferAllocation indexBuffer;
-    std::array<BufferAllocation, Config::MAX_FRAMES_IN_FLIGHT> objectBuffers;
-
-    Transform transform{};
-    uint32_t textureId{0};
-    std::vector<vk::raii::DescriptorSet> descriptorSets;
 };

@@ -9,6 +9,7 @@
 #include "graphics_pipeline.h"
 #include "mesh.h"
 #include "swap_chain.h"
+#include "object.h"
 
 class Engine
 {
@@ -46,7 +47,8 @@ private:
     std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
     uint32_t frameIndex{0};
 
-    std::vector<Mesh> meshes;
+    std::vector<Mesh> meshes{};
+    std::vector<Object> objects{};
 
     std::chrono::steady_clock::time_point lastTime;
 };
