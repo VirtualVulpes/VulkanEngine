@@ -1,36 +1,31 @@
 #include "swap_chain.h"
 
+#include "image.h"
+#include "memory.h"
 #include "vulkan_device.h"
 #include "window.h"
 
-namespace
-{
-    uint32_t chooseMinImageCount(const vk::SurfaceCapabilitiesKHR& surfaceCapabilities)
-    {
+namespace {
+    uint32_t chooseMinImageCount(const vk::SurfaceCapabilitiesKHR& surfaceCapabilities) {
         auto minImageCount = std::max(3u, surfaceCapabilities.minImageCount);
-        if ((surfaceCapabilities.maxImageCount > 0) && (surfaceCapabilities.maxImageCount < minImageCount))
-        {
+        if ((surfaceCapabilities.maxImageCount > 0) && (surfaceCapabilities.maxImageCount < minImageCount)) {
             minImageCount = surfaceCapabilities.maxImageCount;
         }
         return minImageCount;
     }
 
-    vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
-    {
+    vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats) {
         assert(!availableFormats.empty());
 
-        const auto formatIt = std::ranges::find_if(availableFormats, [&](const auto& format)
-        {
+        const auto formatIt = std::ranges::find_if(availableFormats, [&](const auto& format) {
             return format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear;
         });
 
         return formatIt != availableFormats.end() ? *formatIt : availableFormats[0];
     }
 
-    vk::Extent2D chooseExtent(vk::Extent2D framebufferSize, const vk::SurfaceCapabilitiesKHR& capabilities)
-    {
-        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
-        {
+    vk::Extent2D chooseExtent(vk::Extent2D framebufferSize, const vk::SurfaceCapabilitiesKHR& capabilities) {
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
             return capabilities.currentExtent;
         }
 
@@ -42,34 +37,55 @@ namespace
         };
     }
 
-    vk::PresentModeKHR choosePresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes)
-    {
-        bool supportsMailbox = std::ranges::any_of(availablePresentModes, [](const vk::PresentModeKHR value)
-        {
+    vk::PresentModeKHR choosePresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes) {
+        bool supportsMailbox = std::ranges::any_of(availablePresentModes, [](const vk::PresentModeKHR value) {
             return vk::PresentModeKHR::eMailbox == value;
         });
 
         return supportsMailbox ? vk::PresentModeKHR::eMailbox : vk::PresentModeKHR::eFifo;
     }
+
+    vk::Format findSupportedFormat(const vk::raii::PhysicalDevice& physicalDevice,
+                                   const std::vector<vk::Format>& candidates, vk::ImageTiling tiling,
+                                   vk::FormatFeatureFlags features) {
+        for (const auto format : candidates) {
+            vk::FormatProperties properties = physicalDevice.getFormatProperties(format);
+
+            if (tiling == vk::ImageTiling::eLinear && (properties.linearTilingFeatures & features) == features) {
+                return format;
+            }
+            if (tiling == vk::ImageTiling::eOptimal && (properties.optimalTilingFeatures & features) == features) {
+                return format;
+            }
+        }
+
+        throw std::runtime_error("failed to find supported format");
+    }
+
+    vk::Format findDepthFormat(const vk::raii::PhysicalDevice& physicalDevice) {
+        return findSupportedFormat(physicalDevice,
+                                   {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint},
+                                   vk::ImageTiling::eOptimal,
+                                   vk::FormatFeatureFlagBits::eDepthStencilAttachment
+        );
+    }
 }
 
-SwapChain::SwapChain(const vk::raii::SurfaceKHR& surface, vk::Extent2D framebufferSize, const VulkanDevice& device)
-{
-    create(surface, framebufferSize, device);
-    createImageViews(device);
+SwapChain::SwapChain(vk::SurfaceKHR surface, vk::Extent2D framebufferSize, const VulkanDevice& device) {
+    std::vector<vk::SurfaceFormatKHR> formats = device.getPhysicalDevice().getSurfaceFormatsKHR(surface);
+    surfaceFormat = chooseSurfaceFormat(formats);
+
+    createSwapChain(surface, framebufferSize, device);
+    createDepthResources(device);
 }
 
-void SwapChain::create(const vk::raii::SurfaceKHR& surface, vk::Extent2D framebufferSize, const VulkanDevice& device)
-{
+void SwapChain::createSwapChain(vk::SurfaceKHR surface, vk::Extent2D framebufferSize, const VulkanDevice& device) {
     vk::SurfaceCapabilitiesKHR surfaceCapabilities = device.getPhysicalDevice().getSurfaceCapabilitiesKHR(
         surface);
     extent = chooseExtent(framebufferSize, surfaceCapabilities);
 
-    std::vector<vk::SurfaceFormatKHR> formats = device.getPhysicalDevice().getSurfaceFormatsKHR(surface);
-    surfaceFormat = chooseSurfaceFormat(formats);
-
-    std::vector<vk::PresentModeKHR> availablePresentModes = device.getPhysicalDevice().getSurfacePresentModesKHR(
-        surface);
+    std::vector<vk::PresentModeKHR> availablePresentModes =
+            device.getPhysicalDevice().getSurfacePresentModesKHR(surface);
 
     vk::SwapchainCreateInfoKHR createInfo{
         .surface = surface,
@@ -87,28 +103,26 @@ void SwapChain::create(const vk::raii::SurfaceKHR& surface, vk::Extent2D framebu
     };
 
     swapChain = vk::raii::SwapchainKHR(device.getDevice(), createInfo);
-    images = swapChain.getImages();
-}
 
-void SwapChain::createImageViews(const VulkanDevice& device)
-{
-    assert(imageViews.empty());
-
-    vk::ImageViewCreateInfo createInfo{
-        .viewType = vk::ImageViewType::e2D,
-        .format = surfaceFormat.format,
-        .subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor, .levelCount = 1, .layerCount = 1}
-    };
-
-    for (const auto& image : images)
-    {
-        createInfo.image = image;
-        imageViews.emplace_back(device.getDevice(), createInfo);
+    std::vector<vk::Image> rawImages = swapChain.getImages();
+    images.reserve(rawImages.size());
+    for (const auto& image : rawImages) {
+        images.push_back({
+            .image = image,
+            .view = Image::createView(device, image, surfaceFormat.format, vk::ImageAspectFlagBits::eColor)
+        });
     }
 }
 
-void SwapChain::recreate(const Window& window, const VulkanDevice& device)
-{
+void SwapChain::createDepthResources(const VulkanDevice& device) {
+    depthFormat = findDepthFormat(device.getPhysicalDevice());
+
+    depthImage = Image::createResource(device, extent.width, extent.height, depthFormat, vk::ImageTiling::eOptimal,
+                                       vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                                       vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageAspectFlagBits::eDepth);
+}
+
+void SwapChain::recreate(const Window& window, const VulkanDevice& device) {
     auto size = window.getFramebufferSize();
     while (size.width == 0 || size.height == 0) {
         size = window.getFramebufferSize();
@@ -117,9 +131,9 @@ void SwapChain::recreate(const Window& window, const VulkanDevice& device)
 
     device.getDevice().waitIdle();
 
-    imageViews.clear();
+    images.clear();
     swapChain = nullptr;
 
-    create(window.getSurface(), window.getFramebufferSize(), device);
-    createImageViews(device);
+    createSwapChain(window.getSurface(), window.getFramebufferSize(), device);
+    createDepthResources(device);
 }

@@ -1,11 +1,10 @@
 #pragma once
 
-class GraphicsPipeline
-{
+class GraphicsPipeline {
 public:
-    GraphicsPipeline(const vk::raii::Device& device, vk::Format colorFormat,
-                     const vk::raii::DescriptorSetLayout& frameLayout,
-                     const vk::raii::DescriptorSetLayout& objectLayout);
+    GraphicsPipeline(const vk::raii::Device& device, vk::Format colorFormat, vk::Format depthFormat,
+                     vk::DescriptorSetLayout frameLayout, vk::DescriptorSetLayout objectLayout);
+
     const vk::raii::Pipeline& getPipeline() { return pipeline; }
     const vk::raii::PipelineLayout& getLayout() { return layout; }
 

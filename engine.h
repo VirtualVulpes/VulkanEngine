@@ -21,15 +21,15 @@ private:
     void createImageResources();
     void createFrameResources();
 
-    vk::raii::DescriptorPool createDescriptorPool() const;
+    vk::raii::DescriptorPool createDescriptorPool();
     vk::raii::DescriptorSetLayout createDescriptorSetLayout();
 
     void drawFrame();
 
     GLFWManager glfwManager;
     vk::raii::Context context;
-    vk::raii::Instance instance;
-    vk::raii::DebugUtilsMessengerEXT debugMessenger;
+    vk::raii::Instance instance{nullptr};
+    vk::raii::DebugUtilsMessengerEXT debugMessenger{nullptr};
     Window window;
     VulkanDevice device;
     SwapChain swapChain;
@@ -44,6 +44,4 @@ private:
     uint32_t frameIndex{0};
 
     std::vector<Mesh> meshes;
-
-    std::vector<vk::raii::DescriptorSet> descriptorSets;
 };

@@ -1,11 +1,6 @@
 #include "vulkan_device.h"
 
-#include <iostream>
-
-namespace
-{
-    constexpr std::array requiredExtensions = {vk::KHRSwapchainExtensionName};
-}
+#include "constants.h"
 
 VulkanDevice::VulkanDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface)
 {
@@ -37,7 +32,7 @@ void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const 
         bool supportsQueue = foundQueueIndex != VK_QUEUE_FAMILY_IGNORED;
 
         auto availableExtensions = availableDevice.enumerateDeviceExtensionProperties();
-        bool supportsExtensions = std::ranges::all_of(requiredExtensions, [&](auto requiredExtension)
+        bool supportsExtensions = std::ranges::all_of(Config::requiredExtensions, [&](auto requiredExtension)
         {
             return std::ranges::any_of(availableExtensions, [&](const auto& extension)
             {
@@ -95,8 +90,8 @@ void VulkanDevice::createLogicalDevice()
         .pNext = &requiredFeatures.get<vk::PhysicalDeviceFeatures2>(),
         .queueCreateInfoCount = 1,
         .pQueueCreateInfos = &queueCreateInfo,
-        .enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size()),
-        .ppEnabledExtensionNames = requiredExtensions.data()
+        .enabledExtensionCount = static_cast<uint32_t>(Config::requiredExtensions.size()),
+        .ppEnabledExtensionNames = Config::requiredExtensions.data()
     };
 
     device = vk::raii::Device(physicalDevice, createInfo);

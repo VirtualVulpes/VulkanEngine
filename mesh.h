@@ -7,6 +7,8 @@
 #include "transform.h"
 #include "vertex.h"
 
+class VulkanDevice;
+
 class Mesh
 {
 public:

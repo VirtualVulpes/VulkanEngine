@@ -5,14 +5,11 @@
 #include "mesh.h"
 #include "swap_chain.h"
 
-namespace
-{
-    std::vector<char> readFile(std::string_view filename)
-    {
+namespace {
+    std::vector<char> readFile(std::string_view filename) {
         std::ifstream file(filename.data(), std::ios::ate | std::ios::binary);
 
-        if (!file.is_open())
-        {
+        if (!file.is_open()) {
             throw std::runtime_error("failed to open file");
         }
 
@@ -25,20 +22,17 @@ namespace
     }
 
     vk::raii::ShaderModule createShaderModule(const vk::raii::Device& device,
-                                              const std::vector<char>& code)
-    {
+                                              const std::vector<char>& code) {
         vk::ShaderModuleCreateInfo createInfo{
-            .codeSize = code.size() * sizeof(char), .pCode = reinterpret_cast<const uint32_t*>(code.data())
+            .codeSize = code.size() * sizeof(char), .pCode = reinterpret_cast<const uint32_t *>(code.data())
         };
 
         return {device, createInfo};
     }
 }
 
-GraphicsPipeline::GraphicsPipeline(const vk::raii::Device& device, vk::Format colorFormat,
-                                   const vk::raii::DescriptorSetLayout& frameLayout,
-                                   const vk::raii::DescriptorSetLayout& objectLayout)
-{
+GraphicsPipeline::GraphicsPipeline(const vk::raii::Device& device, vk::Format colorFormat, vk::Format depthFormat,
+                                   vk::DescriptorSetLayout frameLayout, vk::DescriptorSetLayout objectLayout) {
     vk::raii::ShaderModule shaderModule = createShaderModule(device, readFile("shaders/slang.spv"));
 
     vk::PipelineShaderStageCreateInfo vertShaderCreateInfo{
@@ -98,17 +92,26 @@ GraphicsPipeline::GraphicsPipeline(const vk::raii::Device& device, vk::Format co
         .dstAlphaBlendFactor = vk::BlendFactor::eZero,
         .alphaBlendOp = vk::BlendOp::eAdd,
         .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-        vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
+                          vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
     };
     vk::PipelineColorBlendStateCreateInfo colorBlendingCreateInfo{
         .logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1,
         .pAttachments = &colorBlendAttachment
     };
 
-    std::array layouts = {*frameLayout, *objectLayout};
+    vk::PipelineDepthStencilStateCreateInfo depthStencil{
+        .depthTestEnable = vk::True,
+        .depthWriteEnable = vk::True,
+        .depthCompareOp = vk::CompareOp::eLess,
+        .depthBoundsTestEnable = vk::False,
+        .stencilTestEnable = vk::False
+    };
+
+    std::array layouts = {frameLayout, objectLayout};
     vk::PipelineLayoutCreateInfo layoutCreateInfo{
         .setLayoutCount = static_cast<uint32_t>(layouts.size()),
-        .pSetLayouts  = layouts.data()};
+        .pSetLayouts = layouts.data()
+    };
     layout = vk::raii::PipelineLayout(device, layoutCreateInfo);
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> createInfo = {
@@ -120,12 +123,12 @@ GraphicsPipeline::GraphicsPipeline(const vk::raii::Device& device, vk::Format co
             .pViewportState = &viewportCreateInfo,
             .pRasterizationState = &rasterizationCreateInfo,
             .pMultisampleState = &multisampleCreateInfo,
+            .pDepthStencilState = &depthStencil,
             .pColorBlendState = &colorBlendingCreateInfo,
             .pDynamicState = &dynamicStateCreateInfo,
-            .layout = layout,
-            .renderPass = nullptr
+            .layout = *layout,
         },
-        {.colorAttachmentCount = 1, .pColorAttachmentFormats = &colorFormat}
+        {.colorAttachmentCount = 1, .pColorAttachmentFormats = &colorFormat, .depthAttachmentFormat = depthFormat}
     };
 
     pipeline = vk::raii::Pipeline(device, nullptr, createInfo.get<vk::GraphicsPipelineCreateInfo>());

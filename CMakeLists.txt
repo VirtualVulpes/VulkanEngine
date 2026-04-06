@@ -98,6 +98,10 @@ add_executable (${TEMPLATE_NAME} main.cpp
         buffer.cpp
         constants.h
         transform.h
+        image.cpp
+        image.h
+        memory.h
+        memory.cpp
 )
 
 set_target_properties (${TEMPLATE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEMPLATE_DIR})
