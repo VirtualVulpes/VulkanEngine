@@ -47,10 +47,13 @@ Mesh::Mesh(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
     }
 }
 
-void Mesh::updateTransform(uint32_t frameIndex) const
-{
-    glm::mat4 model = transform.getModelMatrix();
-    void* mapped = transformBuffers[frameIndex].memory.mapMemory(0, sizeof(glm::mat4));
-    memcpy(mapped, &model, sizeof(glm::mat4));
-    transformBuffers[frameIndex].memory.unmapMemory();
+void Mesh::updateTransform() const {
+    if (!transform.getIsDirty()) return;
+
+    for (const auto& [buffer, memory] : transformBuffers) {
+        const glm::mat4& model = transform.getModelMatrix();
+        void* mapped = memory.mapMemory(0, sizeof(glm::mat4));
+        memcpy(mapped, &model, sizeof(glm::mat4));
+        memory.unmapMemory();
+    }
 }

@@ -9,8 +9,7 @@
 
 class VulkanDevice;
 
-class Mesh
-{
+class Mesh {
 public:
     explicit Mesh(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
                   vk::DescriptorSetLayout descriptorSetLayout);
@@ -22,8 +21,11 @@ public:
     vk::IndexType getIndexType() const { return vk::IndexTypeValue<decltype(indices)::value_type>::value; }
     const vk::raii::DescriptorSet& getDescriptorSet(uint32_t frameIndex) const { return descriptorSets[frameIndex]; }
 
-    void updateTransform(uint32_t frameIndex) const;
-    void setPosition(glm::vec3 pos) { transform.position = pos; }
+
+    const Transform& getTransform() const { return transform; }
+    Transform& getTransform() { return transform; }
+
+    void updateTransform() const;
 
 private:
     const std::vector<Vertex> vertices = {

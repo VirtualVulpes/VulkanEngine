@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include "window.h"
 #include "vulkan_device.h"
 #include "frame_resources.h"
@@ -24,6 +26,7 @@ private:
     vk::raii::DescriptorPool createDescriptorPool();
     vk::raii::DescriptorSetLayout createDescriptorSetLayout();
 
+    void update();
     void drawFrame();
 
     GLFWManager glfwManager;
@@ -44,4 +47,6 @@ private:
     uint32_t frameIndex{0};
 
     std::vector<Mesh> meshes;
+
+    std::chrono::steady_clock::time_point lastTime;
 };

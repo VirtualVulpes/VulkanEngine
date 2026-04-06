@@ -69,12 +69,17 @@ Engine::Engine() : glfwManager(),
     meshes.emplace_back(device, descriptorPool, objectDescriptorSetLayout);
     meshes.emplace_back(device, descriptorPool, objectDescriptorSetLayout);
 
-    meshes.at(0).setPosition(glm::vec3(0.0f, 0.0f, 0.5f));
+    meshes.at(0).getTransform().setPosition({0.0, 0.0, 0.5});
+    meshes.at(0).getTransform().setScale({0.5, 0.5, 0.5});
+    meshes.at(0).getTransform().rotate({0.0, 90.0, 45.0});
 }
 
 void Engine::run() {
+    lastTime = std::chrono::steady_clock::now();
+
     while (!window.shouldClose()) {
         window.pollEvents();
+        update();
         drawFrame();
     }
 
@@ -170,6 +175,14 @@ vk::raii::DescriptorSetLayout Engine::createDescriptorSetLayout() {
     return {device.getDevice(), frameLayoutInfo};
 }
 
+void Engine::update() {
+    auto currentTime = std::chrono::steady_clock::now();
+    float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
+    lastTime = currentTime;
+
+    meshes.at(1).getTransform().rotate(glm::vec3(0.0f, 0.0f, 90.0f) * deltaTime);
+}
+
 void Engine::drawFrame() {
     FrameResources& currentFrame = frameResources[frameIndex];
     currentFrame.beginFrame(device.getDevice());
@@ -195,8 +208,9 @@ void Engine::drawFrame() {
     frameData.proj[1][1] *= -1;
     currentFrame.updateFrameData(frameData);
 
-    meshes.at(0).updateTransform(frameIndex);
-    meshes.at(1).updateTransform(frameIndex);
+    for (const auto& mesh : meshes) {
+        mesh.updateTransform();
+    }
 
     device.getDevice().resetFences(*currentFrame.getInFlightFence());
 

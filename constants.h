@@ -6,7 +6,7 @@ namespace Config {
     constexpr uint32_t WIDTH = 800;
     constexpr uint32_t HEIGHT = 600;
 
-    constexpr std::array<const char *, 1> requiredLayers{"VK_LAYER_KHRONOS_validation"};
+    constexpr std::array<const char *, 2> requiredLayers{"VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
 
     constexpr std::array requiredExtensions = {vk::KHRSwapchainExtensionName};
 
