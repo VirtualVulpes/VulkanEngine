@@ -4,8 +4,6 @@
 
 #include "constants.h"
 
-VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
-
 namespace {
     void checkLayers(const vk::raii::Context& context) {
         std::vector<vk::LayerProperties> availableLayers = context.enumerateInstanceLayerProperties();
@@ -66,12 +64,12 @@ Engine::Engine() : glfwManager(),
     createImageResources();
     createFrameResources();
 
-    meshes.emplace_back(device, descriptorPool, objectDescriptorSetLayout);
-    meshes.emplace_back(device, descriptorPool, objectDescriptorSetLayout);
+    meshes.emplace_back(device, descriptorPool, objectDescriptorSetLayout, 0);
+    meshes.emplace_back(device, descriptorPool, objectDescriptorSetLayout, 1);
 
     meshes.at(0).getTransform().setPosition({0.0, 0.0, 0.5});
     meshes.at(0).getTransform().setScale({0.5, 0.5, 0.5});
-    meshes.at(0).getTransform().rotate({0.0, 90.0, 45.0});
+    meshes.at(0).getTransform().rotate({0.0, 90.0, -45.0});
 }
 
 void Engine::run() {
@@ -143,34 +141,48 @@ void Engine::createFrameResources() {
     frameResources.reserve(Config::MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < Config::MAX_FRAMES_IN_FLIGHT; ++i) {
-        frameResources.emplace_back(device, descriptorPool, frameDescriptorSetLayout);
+        frameResources.emplace_back(device, descriptorPool, frameDescriptorSetLayout, swapChain.getTextureImages());
     }
 }
 
 vk::raii::DescriptorPool Engine::createDescriptorPool() {
-    vk::DescriptorPoolSize poolSize{
-        .type = vk::DescriptorType::eUniformBuffer,
-        .descriptorCount = static_cast<uint32_t>(Config::MAX_FRAMES_IN_FLIGHT * 10)
+    std::array poolSize{
+        vk::DescriptorPoolSize{
+            .type = vk::DescriptorType::eUniformBuffer,
+            .descriptorCount = Config::MAX_FRAMES_IN_FLIGHT * Config::MAX_OBJECTS
+        },
+        vk::DescriptorPoolSize{
+            .type = vk::DescriptorType::eCombinedImageSampler,
+            .descriptorCount = Config::MAX_FRAMES_IN_FLIGHT * Config::MAX_TEXTURES
+        }
     };
 
     vk::DescriptorPoolCreateInfo createInfo{
         .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-        .maxSets = static_cast<uint32_t>(Config::MAX_FRAMES_IN_FLIGHT * 10),
-        .poolSizeCount = 1,
-        .pPoolSizes = &poolSize
+        .maxSets = Config::MAX_FRAMES_IN_FLIGHT * (Config::MAX_OBJECTS + Config::MAX_TEXTURES),
+        .poolSizeCount = static_cast<uint32_t>(poolSize.size()),
+        .pPoolSizes = poolSize.data()
     };
 
     return {device.getDevice(), createInfo};
 }
 
 vk::raii::DescriptorSetLayout Engine::createDescriptorSetLayout() {
-    vk::DescriptorSetLayoutBinding frameBinding{
-        .binding = 0,
-        .descriptorType = vk::DescriptorType::eUniformBuffer,
-        .descriptorCount = 1,
-        .stageFlags = vk::ShaderStageFlagBits::eVertex
+    std::array bindings{
+        vk::DescriptorSetLayoutBinding{
+            .binding = 0,
+            .descriptorType = vk::DescriptorType::eUniformBuffer,
+            .descriptorCount = 1,
+            .stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment
+        },
+        vk::DescriptorSetLayoutBinding{
+            .binding = 1,
+            .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+            .descriptorCount = static_cast<uint32_t>(swapChain.getTextureImages().size()),
+            .stageFlags = vk::ShaderStageFlagBits::eFragment
+        },
     };
-    vk::DescriptorSetLayoutCreateInfo frameLayoutInfo{.bindingCount = 1, .pBindings = &frameBinding};
+    vk::DescriptorSetLayoutCreateInfo frameLayoutInfo{.bindingCount = bindings.size(), .pBindings = bindings.data()};
 
     return {device.getDevice(), frameLayoutInfo};
 }

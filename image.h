@@ -35,4 +35,7 @@ namespace Image {
                           vk::PipelineStageFlags2 srcStageMask, vk::PipelineStageFlags2 dstStageMask,
                           vk::ImageAspectFlags imageAspectFlags, const vk::raii::CommandBuffer& commandBuffer
     );
+
+    ImageResource createTextureImage(std::string_view path, const VulkanDevice& device);
+    void copyBufferToImage(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height);
 };

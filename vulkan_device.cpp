@@ -2,29 +2,25 @@
 
 #include "constants.h"
 
-VulkanDevice::VulkanDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface)
-{
+VulkanDevice::VulkanDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface) {
     findPhysicalDevice(instance, surface);
     createLogicalDevice();
     createCommandPool();
+    createTextureSampler();
 }
 
-void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface)
-{
+void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface) {
     std::vector<vk::raii::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
 
-    for (const auto& availableDevice : devices)
-    {
+    for (const auto& availableDevice : devices) {
         bool supportsVulkanVersion = availableDevice.getProperties().apiVersion >= vk::ApiVersion14;
 
         uint32_t foundQueueIndex = VK_QUEUE_FAMILY_IGNORED;
 
         auto queueFamilies = availableDevice.getQueueFamilyProperties();
-        for (uint32_t i = 0; i < queueFamilies.size(); i++)
-        {
+        for (uint32_t i = 0; i < queueFamilies.size(); i++) {
             if ((queueFamilies[i].queueFlags & vk::QueueFlagBits::eGraphics) &&
-                availableDevice.getSurfaceSupportKHR(i, *surface))
-            {
+                availableDevice.getSurfaceSupportKHR(i, *surface)) {
                 foundQueueIndex = i;
                 break;
             }
@@ -32,10 +28,8 @@ void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const 
         bool supportsQueue = foundQueueIndex != VK_QUEUE_FAMILY_IGNORED;
 
         auto availableExtensions = availableDevice.enumerateDeviceExtensionProperties();
-        bool supportsExtensions = std::ranges::all_of(Config::requiredExtensions, [&](auto requiredExtension)
-        {
-            return std::ranges::any_of(availableExtensions, [&](const auto& extension)
-            {
+        bool supportsExtensions = std::ranges::all_of(Config::requiredExtensions, [&](auto requiredExtension) {
+            return std::ranges::any_of(availableExtensions, [&](const auto& extension) {
                 return strcmp(extension.extensionName, requiredExtension) == 0;
             });
         });
@@ -43,18 +37,20 @@ void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const 
         auto features = availableDevice.getFeatures2<
             vk::PhysicalDeviceFeatures2,
             vk::PhysicalDeviceVulkan11Features,
+            vk::PhysicalDeviceVulkan12Features,
             vk::PhysicalDeviceVulkan13Features,
             vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
         >();
 
         bool supportsRequiredFeatures =
-            features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
-            features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
-            features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
-            features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
+                features.get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy &&
+                features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
+                features.get<vk::PhysicalDeviceVulkan12Features>().runtimeDescriptorArray &&
+                features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
+                features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
+                features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
 
-        if (supportsVulkanVersion && supportsQueue && supportsExtensions && supportsRequiredFeatures)
-        {
+        if (supportsVulkanVersion && supportsQueue && supportsExtensions && supportsRequiredFeatures) {
             physicalDevice = availableDevice;
             queueIndex = foundQueueIndex;
             return;
@@ -64,19 +60,20 @@ void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const 
     throw std::runtime_error("no suitable device found");
 }
 
-void VulkanDevice::createLogicalDevice()
-{
+void VulkanDevice::createLogicalDevice() {
     vk::StructureChain<
-            vk::PhysicalDeviceFeatures2,
-            vk::PhysicalDeviceVulkan11Features,
-            vk::PhysicalDeviceVulkan13Features,
-            vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
-        requiredFeatures = {
-            {},
-            {.shaderDrawParameters = true},
-            {.synchronization2 = true, .dynamicRendering = true},
-            {.extendedDynamicState = true}
-        };
+                vk::PhysicalDeviceFeatures2,
+                vk::PhysicalDeviceVulkan11Features,
+                vk::PhysicalDeviceVulkan12Features,
+                vk::PhysicalDeviceVulkan13Features,
+                vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
+            requiredFeatures = {
+                {.features = {.samplerAnisotropy = true}},
+                {.shaderDrawParameters = true},
+                {.runtimeDescriptorArray = true},
+                {.synchronization2 = true, .dynamicRendering = true},
+                {.extendedDynamicState = true}
+            };
 
     // only one queue, so priority doesn't matter
     float queuePriority = 0.5f;
@@ -98,11 +95,52 @@ void VulkanDevice::createLogicalDevice()
     graphicsQueue = vk::raii::Queue(device, queueIndex, 0);
 }
 
-void VulkanDevice::createCommandPool()
-{
+void VulkanDevice::createCommandPool() {
     vk::CommandPoolCreateInfo poolCreateInfo{
         .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, .queueFamilyIndex = queueIndex
     };
 
     commandPool = vk::raii::CommandPool{device, poolCreateInfo};
+}
+
+vk::raii::CommandBuffer VulkanDevice::beginSingleTimeCommands() const {
+    vk::CommandBufferAllocateInfo allocInfo{
+        .commandPool = *commandPool,
+        .level = vk::CommandBufferLevel::ePrimary,
+        .commandBufferCount = 1
+    };
+    vk::raii::CommandBuffer commandBuffer = std::move(vk::raii::CommandBuffers(device, allocInfo).front());
+
+    vk::CommandBufferBeginInfo beginInfo{
+        .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+    };
+    commandBuffer.begin(beginInfo);
+
+    return commandBuffer;
+}
+
+void VulkanDevice::endSingleTimeCommands(const vk::raii::CommandBuffer& commandBuffer) const {
+    commandBuffer.end();
+
+    vk::SubmitInfo submitInfo{.commandBufferCount = 1, .pCommandBuffers = &*commandBuffer};
+    graphicsQueue.submit(submitInfo, nullptr);
+    graphicsQueue.waitIdle();
+}
+
+void VulkanDevice::createTextureSampler() {
+    vk::PhysicalDeviceProperties properties = physicalDevice.getProperties();
+    vk::SamplerCreateInfo createInfo{
+        .magFilter = vk::Filter::eLinear,
+        .minFilter = vk::Filter::eLinear,
+        .mipmapMode = vk::SamplerMipmapMode::eLinear,
+        .addressModeU = vk::SamplerAddressMode::eRepeat,
+        .addressModeV = vk::SamplerAddressMode::eRepeat,
+        .addressModeW = vk::SamplerAddressMode::eRepeat,
+        .mipLodBias = 0.0f,
+        .anisotropyEnable = vk::True,
+        .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+        .compareEnable = vk::False,
+        .compareOp = vk::CompareOp::eAlways
+    };
+    textureSampler = vk::raii::Sampler(device, createInfo);
 }

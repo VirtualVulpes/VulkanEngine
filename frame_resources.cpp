@@ -4,7 +4,7 @@
 #include "vulkan_device.h"
 
 FrameResources::FrameResources(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
-                               vk::DescriptorSetLayout descriptorSetLayout) {
+                               vk::DescriptorSetLayout descriptorSetLayout, const std::vector<ImageResource>& textureImages) {
     vk::CommandBufferAllocateInfo allocateInfo{
         .commandPool = device.getCommandPool(),
         .level = vk::CommandBufferLevel::ePrimary,
@@ -33,17 +33,34 @@ FrameResources::FrameResources(const VulkanDevice& device, vk::DescriptorPool de
         .offset = 0,
         .range = sizeof(FrameData)
     };
-
-    vk::WriteDescriptorSet descriptorWrite{
-        .dstSet = descriptorSet,
-        .dstBinding = 0,
-        .dstArrayElement = 0,
-        .descriptorCount = 1,
-        .descriptorType = vk::DescriptorType::eUniformBuffer,
-        .pBufferInfo = &bufferInfo
+    std::vector<vk::DescriptorImageInfo> imageInfo{};
+    for (const auto& image : textureImages) {
+        imageInfo.push_back({
+            .sampler = *device.getTextureSampler(),
+            .imageView = image.view,
+            .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
+        });
+    }
+    std::array descriptorWrites{
+        vk::WriteDescriptorSet{
+            .dstSet = descriptorSet,
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = vk::DescriptorType::eUniformBuffer,
+            .pBufferInfo = &bufferInfo
+        },
+        vk::WriteDescriptorSet{
+            .dstSet = *descriptorSet,
+            .dstBinding = 1,
+            .dstArrayElement = 0,
+            .descriptorCount = static_cast<uint32_t>(imageInfo.size()),
+            .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+            .pImageInfo = imageInfo.data()
+        }
     };
 
-    device.getDevice().updateDescriptorSets(descriptorWrite, {});
+    device.getDevice().updateDescriptorSets(descriptorWrites, {});
 }
 
 void FrameResources::beginFrame(const vk::raii::Device& device) {
@@ -128,9 +145,9 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         commandBuffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             pipelineLayout,
-            1, // first set
+            1,
             {mesh.getDescriptorSet(frameIndex)},
-            {} // dynamic offsets
+            {}
         );
         commandBuffer.drawIndexed(mesh.getIndexAmount(), 1, 0, 0, 0);
     }

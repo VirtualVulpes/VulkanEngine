@@ -2,6 +2,8 @@
 
 #include "mesh.h"
 
+class ImageResource;
+
 struct RenderTarget {
     vk::Image colorImage;
     vk::ImageView colorImageView;
@@ -18,7 +20,7 @@ struct FrameData {
 class FrameResources {
 public:
     FrameResources(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
-                   vk::DescriptorSetLayout descriptorSetLayout);
+                   vk::DescriptorSetLayout descriptorSetLayout, const std::vector<ImageResource>& textureImages);
 
     const vk::raii::CommandBuffer& getCommandBuffer() const { return commandBuffer; }
     const vk::raii::Semaphore& getPresentCompleteSemaphore() const { return presentCompleteSemaphore; }

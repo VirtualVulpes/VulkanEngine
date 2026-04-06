@@ -5,6 +5,13 @@ class VulkanDevice;
 struct BufferAllocation {
     vk::raii::Buffer buffer{nullptr};
     vk::raii::DeviceMemory memory{nullptr};
+
+    void copyData(vk::DeviceSize size, const void* data) const {
+        void* address = memory.mapMemory(0, size);
+        memcpy(address, data, size);
+        memory.unmapMemory();
+    }
+
 };
 
 namespace Buffer {

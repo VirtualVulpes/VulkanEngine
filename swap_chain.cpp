@@ -77,6 +77,7 @@ SwapChain::SwapChain(vk::SurfaceKHR surface, vk::Extent2D framebufferSize, const
 
     createSwapChain(surface, framebufferSize, device);
     createDepthResources(device);
+    createTextureResource(device);
 }
 
 void SwapChain::createSwapChain(vk::SurfaceKHR surface, vk::Extent2D framebufferSize, const VulkanDevice& device) {
@@ -120,6 +121,11 @@ void SwapChain::createDepthResources(const VulkanDevice& device) {
     depthImage = Image::createResource(device, extent.width, extent.height, depthFormat, vk::ImageTiling::eOptimal,
                                        vk::ImageUsageFlagBits::eDepthStencilAttachment,
                                        vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageAspectFlagBits::eDepth);
+}
+
+void SwapChain::createTextureResource(const VulkanDevice& device) {
+    textureImages.push_back(Image::createTextureImage("textures/texture.ktx2", device));
+    textureImages.push_back(Image::createTextureImage("textures/texture_i.ktx2", device));
 }
 
 void SwapChain::recreate(const Window& window, const VulkanDevice& device) {

@@ -12,7 +12,7 @@ class VulkanDevice;
 class Mesh {
 public:
     explicit Mesh(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
-                  vk::DescriptorSetLayout descriptorSetLayout);
+                  vk::DescriptorSetLayout descriptorSetLayout, uint32_t textureIndex);
 
     const BufferAllocation& getVertexBuffer() const { return vertexBuffer; }
     size_t getVertexAmount() const { return vertices.size(); }
@@ -29,10 +29,10 @@ public:
 
 private:
     const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}
+        {{-0.5f, -0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
     };
 
     const std::vector<uint16_t> indices = {
@@ -41,8 +41,9 @@ private:
 
     BufferAllocation vertexBuffer;
     BufferAllocation indexBuffer;
-    std::array<BufferAllocation, Config::MAX_FRAMES_IN_FLIGHT> transformBuffers;
+    std::array<BufferAllocation, Config::MAX_FRAMES_IN_FLIGHT> objectBuffers;
 
     Transform transform{};
+    uint32_t textureId{0};
     std::vector<vk::raii::DescriptorSet> descriptorSets;
 };

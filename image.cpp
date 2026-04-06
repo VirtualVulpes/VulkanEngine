@@ -1,7 +1,9 @@
 #include "image.h"
 
+#include "buffer.h"
 #include "memory.h"
 #include "vulkan_device.h"
+#include "ktx.h"
 
 namespace {
     vk::raii::Image createImage(const VulkanDevice& device, uint32_t width, uint32_t height, vk::Format format,
@@ -18,7 +20,7 @@ namespace {
             .sharingMode = vk::SharingMode::eExclusive,
             .initialLayout = vk::ImageLayout::eUndefined
         };
-        return vk::raii::Image(device.getDevice(), imageInfo);
+        return {device.getDevice(), imageInfo};
     }
 
     vk::raii::DeviceMemory createMemory(const VulkanDevice& device, const vk::raii::Image& image,
@@ -29,7 +31,7 @@ namespace {
             .memoryTypeIndex = Memory::findMemoryType(device.getPhysicalDevice(), memRequirements.memoryTypeBits,
                                                       properties)
         };
-        return vk::raii::DeviceMemory(device.getDevice(), allocInfo);
+        return {device.getDevice(), allocInfo};
     }
 }
 
@@ -67,7 +69,7 @@ namespace Image {
             .format = format,
             .subresourceRange = {aspectFlags, 0, 1, 0, 1}
         };
-        return vk::raii::ImageView(device.getDevice(), createInfo);
+        return {device.getDevice(), createInfo};
     }
 
     void transitionLayout(
@@ -105,5 +107,84 @@ namespace Image {
             .pImageMemoryBarriers = &barrier
         };
         commandBuffer.pipelineBarrier2(dependencyInfo);
+    }
+
+    ImageResource createTextureImage(std::string_view path, const VulkanDevice& device) {
+        auto commandBuffer = device.beginSingleTimeCommands();
+
+        ktxTexture* kTexture;
+        KTX_error_code result = ktxTexture_CreateFromNamedFile(path.data(),
+                                                               KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &kTexture);
+
+        if (result != KTX_SUCCESS) {
+            throw std::runtime_error("failed to load ktx texture image");
+        }
+
+        // get texture dimensions and data
+        uint32_t texWidth = kTexture->baseWidth;
+        uint32_t texHeight = kTexture->baseHeight;
+        ktx_size_t imageSize = ktxTexture_GetImageSize(kTexture, 0);
+        ktx_uint8_t* ktxTextureData = ktxTexture_GetData(kTexture);
+
+        // create staging buffer and copy data
+        auto buffer = Buffer::create(imageSize, vk::BufferUsageFlagBits::eTransferSrc,
+                                     vk::MemoryPropertyFlagBits::eHostVisible |
+                                     vk::MemoryPropertyFlagBits::eHostCoherent, device);
+        buffer.copyData(imageSize, ktxTextureData);
+
+        // determine the Vulkan format from KTX format
+        vk::Format textureFormat = vk::Format::eR8G8B8A8Srgb; // default format, should be determined from KTX metadata
+
+        // create the texture image
+        ImageResource textureImage = createResource(device, texWidth, texHeight, textureFormat,
+                                                    vk::ImageTiling::eOptimal,
+                                                    vk::ImageUsageFlagBits::eTransferDst |
+                                                    vk::ImageUsageFlagBits::eSampled,
+                                                    vk::MemoryPropertyFlagBits::eDeviceLocal,
+                                                    vk::ImageAspectFlagBits::eColor);
+
+        // copy data from staging buffer to texture image
+        transitionLayout(textureImage.image,
+                         vk::ImageLayout::eUndefined,
+                         vk::ImageLayout::eTransferDstOptimal,
+                         {},
+                         vk::AccessFlagBits2::eTransferWrite,
+                         vk::PipelineStageFlagBits2::eTopOfPipe,
+                         vk::PipelineStageFlagBits2::eTransfer,
+                         vk::ImageAspectFlagBits::eColor,
+                         commandBuffer
+        );
+
+        copyBufferToImage(commandBuffer, buffer.buffer, textureImage.image, texWidth, texHeight);
+
+        transitionLayout(textureImage.image,
+                         vk::ImageLayout::eTransferDstOptimal,
+                         vk::ImageLayout::eShaderReadOnlyOptimal,
+                         vk::AccessFlagBits2::eTransferWrite,
+                         vk::AccessFlagBits2::eShaderRead,
+                         vk::PipelineStageFlagBits2::eTransfer,
+                         vk::PipelineStageFlagBits2::eFragmentShader,
+                         vk::ImageAspectFlagBits::eColor,
+                         commandBuffer
+        );
+
+        // cleanup resources
+        ktxTexture_Destroy(kTexture);
+        device.endSingleTimeCommands(commandBuffer);
+
+        return textureImage;
+    }
+
+    void copyBufferToImage(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Buffer& buffer, vk::raii::Image& image,
+                           uint32_t width, uint32_t height) {
+        vk::BufferImageCopy region{
+            .bufferOffset = 0,
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
+            .imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+            .imageOffset = {0, 0, 0},
+            .imageExtent = {width, height, 1}
+        };
+        commandBuffer.copyBufferToImage(*buffer, *image, vk::ImageLayout::eTransferDstOptimal, {region});
     }
 }
