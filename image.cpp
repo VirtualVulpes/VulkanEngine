@@ -127,7 +127,7 @@ namespace Image {
         ktx_uint8_t* ktxTextureData = ktxTexture_GetData(kTexture);
 
         // create staging buffer and copy data
-        auto buffer = Buffer::create(imageSize, vk::BufferUsageFlagBits::eTransferSrc,
+        auto buffer = Buffer::createAllocation(imageSize, vk::BufferUsageFlagBits::eTransferSrc,
                                      vk::MemoryPropertyFlagBits::eHostVisible |
                                      vk::MemoryPropertyFlagBits::eHostCoherent, device);
         buffer.copyData(imageSize, ktxTextureData);

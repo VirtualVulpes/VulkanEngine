@@ -65,7 +65,9 @@ Engine::Engine() : glfwManager(),
                    descriptorPool(createDescriptorPool()) {
     createImageResources();
     createFrameResources();
+}
 
+void Engine::createScene() {
     meshes.emplace_back(device, Shape::Plane);
     meshes.emplace_back(device, Shape::Cube);
     objects.emplace_back(device, descriptorPool, objectDescriptorSetLayout, Transform{}, meshes.at(0), 0);
@@ -76,6 +78,7 @@ Engine::Engine() : glfwManager(),
 void Engine::run() {
     lastTime = std::chrono::steady_clock::now();
 
+    createScene();
     while (!window.shouldClose()) {
         window.pollEvents();
         update();

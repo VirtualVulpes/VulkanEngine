@@ -16,7 +16,7 @@ FrameResources::FrameResources(const VulkanDevice& device, vk::DescriptorPool de
     presentCompleteSemaphore = vk::raii::Semaphore(device.getDevice(), vk::SemaphoreCreateInfo());
     inFlightFence = vk::raii::Fence(device.getDevice(), {.flags = vk::FenceCreateFlagBits::eSignaled});
 
-    uniformBuffer = Buffer::create(sizeof(FrameData),
+    uniformBuffer = Buffer::createAllocation(sizeof(FrameData),
                                    vk::BufferUsageFlagBits::eUniformBuffer,
                                    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
                                    device);

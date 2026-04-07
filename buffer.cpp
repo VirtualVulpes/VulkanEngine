@@ -16,35 +16,55 @@ namespace {
 }
 
 namespace Buffer {
-    BufferAllocation create(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
-                            const VulkanDevice& device) {
-        BufferAllocation allocation;
+    BufferAllocation createAllocation(vk::DeviceSize size, vk::BufferUsageFlags usage,
+                                      vk::MemoryPropertyFlags properties,
+                                      const VulkanDevice& device) {
+        BufferAllocation buffer;
 
         vk::BufferCreateInfo bufferInfo{.size = size, .usage = usage, .sharingMode = vk::SharingMode::eExclusive};
-        allocation.buffer = vk::raii::Buffer(device.getDevice(), bufferInfo);
-        vk::MemoryRequirements memRequirements = allocation.buffer.getMemoryRequirements();
+        buffer.buffer = vk::raii::Buffer(device.getDevice(), bufferInfo);
+        vk::MemoryRequirements memRequirements = buffer.buffer.getMemoryRequirements();
         vk::MemoryAllocateInfo allocInfo{
             .allocationSize = memRequirements.size,
             .memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties, device.getPhysicalDevice())
         };
-        allocation.memory = vk::raii::DeviceMemory(device.getDevice(), allocInfo);
-        allocation.buffer.bindMemory(*allocation.memory, 0);
+        buffer.memory = vk::raii::DeviceMemory(device.getDevice(), allocInfo);
+        buffer.buffer.bindMemory(*buffer.memory, 0);
 
-        return allocation;
+        return buffer;
+    }
+
+    MappedBuffer createMapped(vk::DeviceSize size, vk::BufferUsageFlags usage, const VulkanDevice& device) {
+        MappedBuffer buffer;
+
+        vk::BufferCreateInfo bufferInfo{.size = size, .usage = usage, .sharingMode = vk::SharingMode::eExclusive};
+        buffer.buffer = vk::raii::Buffer(device.getDevice(), bufferInfo);
+        vk::MemoryRequirements memRequirements = buffer.buffer.getMemoryRequirements();
+        vk::MemoryAllocateInfo allocInfo{
+            .allocationSize = memRequirements.size,
+            .memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits,
+                                              vk::MemoryPropertyFlagBits::eHostVisible |
+                                              vk::MemoryPropertyFlagBits::eHostCoherent, device.getPhysicalDevice())
+        };
+        buffer.memory = vk::raii::DeviceMemory(device.getDevice(), allocInfo);
+        buffer.buffer.bindMemory(*buffer.memory, 0);
+        buffer.mappedPtr = buffer.memory.mapMemory(0, size);
+
+        return buffer;
     }
 
     BufferAllocation createWithStaging(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage,
                                        const VulkanDevice& device) {
-        auto stagingBuffer = create(size, vk::BufferUsageFlagBits::eTransferSrc,
-                                    vk::MemoryPropertyFlagBits::eHostVisible |
-                                    vk::MemoryPropertyFlagBits::eHostCoherent, device);
+        auto stagingBuffer = createAllocation(size, vk::BufferUsageFlagBits::eTransferSrc,
+                                              vk::MemoryPropertyFlagBits::eHostVisible |
+                                              vk::MemoryPropertyFlagBits::eHostCoherent, device);
 
         void* dataStaging = stagingBuffer.memory.mapMemory(0, size);
         memcpy(dataStaging, data, size);
         stagingBuffer.memory.unmapMemory();
 
-        auto buffer = create(size, vk::BufferUsageFlagBits::eTransferDst | usage,
-                             vk::MemoryPropertyFlagBits::eDeviceLocal, device);
+        auto buffer = createAllocation(size, vk::BufferUsageFlagBits::eTransferDst | usage,
+                                       vk::MemoryPropertyFlagBits::eDeviceLocal, device);
 
         copy(stagingBuffer.buffer, buffer.buffer, size, device);
 

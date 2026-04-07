@@ -22,6 +22,7 @@ private:
     const Mesh& mesh;
     uint32_t textureId{};
 
-    std::array<BufferAllocation, Config::MAX_FRAMES_IN_FLIGHT> objectBuffers;
+    std::array<MappedBuffer, Config::MAX_FRAMES_IN_FLIGHT> objectBuffers;
     std::vector<vk::raii::DescriptorSet> descriptorSets;
+    void* mappedPtr{nullptr};
 };

@@ -15,10 +15,7 @@ Object::Object(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
                uint32_t textureId) : transform(transform), mesh(mesh),
                                      textureId(textureId) {
     for (auto& buffer : objectBuffers) {
-        buffer = Buffer::create(sizeof(ObjectData),
-                                vk::BufferUsageFlagBits::eUniformBuffer,
-                                vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-                                device);
+        buffer = Buffer::createMapped(sizeof(ObjectData), vk::BufferUsageFlagBits::eUniformBuffer, device);
     }
 
     std::vector layouts(Config::MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
@@ -54,13 +51,11 @@ Object::Object(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
 void Object::updateTransform() const {
     if (!transform.getIsDirty()) return;
 
-    for (const auto& [buffer, memory] : objectBuffers) {
+    for (const auto& buffer : objectBuffers) {
         ObjectData data{
             .model = transform.getModelMatrix(),
             .textureId = textureId
         };
-        void* mapped = memory.mapMemory(0, sizeof(ObjectData));
-        memcpy(mapped, &data, sizeof(ObjectData));
-        memory.unmapMemory();
+        memcpy(buffer.mappedPtr, &data, sizeof(ObjectData));
     }
 }

@@ -27,6 +27,7 @@ private:
     vk::raii::DescriptorPool createDescriptorPool();
     vk::raii::DescriptorSetLayout createDescriptorSetLayout();
 
+    void createScene();
     void update();
     void drawFrame();
 
