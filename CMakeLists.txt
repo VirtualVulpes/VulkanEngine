@@ -103,8 +103,8 @@ add_executable (${TEMPLATE_NAME} main.cpp
         memory.h
         memory.cpp
         transform.cpp
-        Object.h
-        Object.cpp
+        object.h
+        object.cpp
 )
 
 set_target_properties (${TEMPLATE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEMPLATE_DIR})
@@ -128,7 +128,9 @@ target_compile_definitions(${TEMPLATE_NAME} PRIVATE
         GLM_FORCE_DEPTH_ZERO_TO_ONE
 )
 
+if(MSVC)
 target_link_options(${TEMPLATE_NAME} PRIVATE /DEBUG:FASTLINK)
+endif()
 
 target_precompile_headers(${TEMPLATE_NAME} PRIVATE
         <vulkan/vulkan_raii.hpp>
