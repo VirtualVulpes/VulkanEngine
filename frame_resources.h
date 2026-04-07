@@ -6,6 +6,8 @@ class Object;
 class ImageResource;
 
 struct RenderTarget {
+    vk::Image swapChainImage;
+    vk::ImageView swapChainImageView;
     vk::Image colorImage;
     vk::ImageView colorImageView;
     vk::Image depthImage;

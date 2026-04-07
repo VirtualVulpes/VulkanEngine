@@ -76,6 +76,7 @@ SwapChain::SwapChain(vk::SurfaceKHR surface, vk::Extent2D framebufferSize, const
     surfaceFormat = chooseSurfaceFormat(formats);
 
     createSwapChain(surface, framebufferSize, device);
+    createColorResources(device);
     createDepthResources(device);
     createTextureResource(device);
 }
@@ -115,12 +116,18 @@ void SwapChain::createSwapChain(vk::SurfaceKHR surface, vk::Extent2D framebuffer
     }
 }
 
+void SwapChain::createColorResources(const VulkanDevice& device) {
+    colorImage = Image::createResource(device, extent.width, extent.height, surfaceFormat.format, vk::ImageTiling::eOptimal,
+                                       vk::ImageUsageFlagBits::eTransientAttachment  | vk::ImageUsageFlagBits::eColorAttachment,
+                                       vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageAspectFlagBits::eColor, 1, device.getMsaaSamples());
+}
+
 void SwapChain::createDepthResources(const VulkanDevice& device) {
     depthFormat = findDepthFormat(device.getPhysicalDevice());
 
     depthImage = Image::createResource(device, extent.width, extent.height, depthFormat, vk::ImageTiling::eOptimal,
                                        vk::ImageUsageFlagBits::eDepthStencilAttachment,
-                                       vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageAspectFlagBits::eDepth);
+                                       vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageAspectFlagBits::eDepth, 1, device.getMsaaSamples());
 }
 
 void SwapChain::createTextureResource(const VulkanDevice& device) {
@@ -141,5 +148,6 @@ void SwapChain::recreate(const Window& window, const VulkanDevice& device) {
     swapChain = nullptr;
 
     createSwapChain(window.getSurface(), window.getFramebufferSize(), device);
+    createColorResources(device);
     createDepthResources(device);
 }

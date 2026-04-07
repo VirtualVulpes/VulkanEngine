@@ -7,14 +7,14 @@
 
 namespace {
     vk::raii::Image createImage(const VulkanDevice& device, uint32_t width, uint32_t height, vk::Format format,
-                                vk::ImageTiling tiling, vk::ImageUsageFlags usage) {
+                                vk::ImageTiling tiling, vk::ImageUsageFlags usage, uint32_t mipLevels = 1, vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1) {
         vk::ImageCreateInfo imageInfo{
             .imageType = vk::ImageType::e2D,
             .format = format,
             .extent = {width, height, 1},
-            .mipLevels = 1,
+            .mipLevels = mipLevels,
             .arrayLayers = 1,
-            .samples = vk::SampleCountFlagBits::e1,
+            .samples = samples,
             .tiling = tiling,
             .usage = usage,
             .sharingMode = vk::SharingMode::eExclusive,
@@ -50,10 +50,10 @@ namespace Image {
 
     ImageResource createResource(const VulkanDevice& device, uint32_t width, uint32_t height, vk::Format format,
                                  vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
-                                 vk::ImageAspectFlags aspectFlags) {
+                                 vk::ImageAspectFlags aspectFlags, uint32_t mipLevels, vk::SampleCountFlagBits samples) {
         ImageResource resource;
 
-        resource.image = createImage(device, width, height, format, tiling, usage);
+        resource.image = createImage(device, width, height, format, tiling, usage, mipLevels, samples);
         resource.memory = createMemory(device, resource.image, properties);
         resource.image.bindMemory(*resource.memory, 0);
         resource.view = createView(device, *resource.image, format, aspectFlags);

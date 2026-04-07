@@ -1,8 +1,10 @@
 #pragma once
 
+class VulkanDevice;
+
 class GraphicsPipeline {
 public:
-    GraphicsPipeline(const vk::raii::Device& device, vk::Format colorFormat, vk::Format depthFormat,
+    GraphicsPipeline(const VulkanDevice& device, vk::Format colorFormat, vk::Format depthFormat,
                      vk::DescriptorSetLayout frameLayout, vk::DescriptorSetLayout objectLayout);
 
     const vk::raii::Pipeline& getPipeline() { return pipeline; }

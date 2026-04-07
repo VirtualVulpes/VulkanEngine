@@ -4,6 +4,7 @@
 
 #include "mesh.h"
 #include "swap_chain.h"
+#include "vulkan_device.h"
 
 namespace {
     std::vector<char> readFile(std::string_view filename) {
@@ -31,9 +32,9 @@ namespace {
     }
 }
 
-GraphicsPipeline::GraphicsPipeline(const vk::raii::Device& device, vk::Format colorFormat, vk::Format depthFormat,
+GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, vk::Format colorFormat, vk::Format depthFormat,
                                    vk::DescriptorSetLayout frameLayout, vk::DescriptorSetLayout objectLayout) {
-    vk::raii::ShaderModule shaderModule = createShaderModule(device, readFile("shaders/slang.spv"));
+    vk::raii::ShaderModule shaderModule = createShaderModule(device.getDevice(), readFile("shaders/slang.spv"));
 
     vk::PipelineShaderStageCreateInfo vertShaderCreateInfo{
         .stage = vk::ShaderStageFlagBits::eVertex,
@@ -80,7 +81,7 @@ GraphicsPipeline::GraphicsPipeline(const vk::raii::Device& device, vk::Format co
     };
 
     vk::PipelineMultisampleStateCreateInfo multisampleCreateInfo{
-        .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False
+        .rasterizationSamples = device.getMsaaSamples(), .sampleShadingEnable = vk::False
     };
 
     vk::PipelineColorBlendAttachmentState colorBlendAttachment{
@@ -112,7 +113,7 @@ GraphicsPipeline::GraphicsPipeline(const vk::raii::Device& device, vk::Format co
         .setLayoutCount = static_cast<uint32_t>(layouts.size()),
         .pSetLayouts = layouts.data()
     };
-    layout = vk::raii::PipelineLayout(device, layoutCreateInfo);
+    layout = vk::raii::PipelineLayout(device.getDevice(), layoutCreateInfo);
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> createInfo = {
         {
@@ -131,5 +132,5 @@ GraphicsPipeline::GraphicsPipeline(const vk::raii::Device& device, vk::Format co
         {.colorAttachmentCount = 1, .pColorAttachmentFormats = &colorFormat, .depthAttachmentFormat = depthFormat}
     };
 
-    pipeline = vk::raii::Pipeline(device, nullptr, createInfo.get<vk::GraphicsPipelineCreateInfo>());
+    pipeline = vk::raii::Pipeline(device.getDevice(), nullptr, createInfo.get<vk::GraphicsPipelineCreateInfo>());
 }

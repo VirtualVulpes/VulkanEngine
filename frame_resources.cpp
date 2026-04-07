@@ -80,7 +80,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
     commandBuffer.begin({});
 
     Image::transitionLayout(
-        renderTarget.colorImage,
+        renderTarget.swapChainImage,
         vk::ImageLayout::eUndefined,
         vk::ImageLayout::eColorAttachmentOptimal,
         {},
@@ -90,6 +90,17 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         vk::ImageAspectFlagBits::eColor,
         commandBuffer
     );
+    Image::transitionLayout(
+    renderTarget.colorImage,
+    vk::ImageLayout::eUndefined,
+    vk::ImageLayout::eColorAttachmentOptimal,
+    vk::AccessFlagBits2::eColorAttachmentWrite,
+    vk::AccessFlagBits2::eColorAttachmentWrite,
+    vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+    vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+    vk::ImageAspectFlagBits::eColor,
+    commandBuffer
+);
     Image::transitionLayout(
         renderTarget.depthImage,
         vk::ImageLayout::eUndefined,
@@ -107,6 +118,9 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
     vk::RenderingAttachmentInfo colorAttachmentInfo = {
         .imageView = renderTarget.colorImageView,
         .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+        .resolveMode = vk::ResolveModeFlagBits::eAverage,
+        .resolveImageView = renderTarget.swapChainImageView,
+        .resolveImageLayout =  vk::ImageLayout::eColorAttachmentOptimal,
         .loadOp = vk::AttachmentLoadOp::eClear,
         .storeOp = vk::AttachmentStoreOp::eStore,
         .clearValue = clearColor
@@ -156,7 +170,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
     commandBuffer.endRendering();
 
     Image::transitionLayout(
-        renderTarget.colorImage,
+        renderTarget.swapChainImage,
         vk::ImageLayout::eColorAttachmentOptimal,
         vk::ImageLayout::ePresentSrcKHR,
         vk::AccessFlagBits2::eColorAttachmentWrite,

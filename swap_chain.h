@@ -16,6 +16,9 @@ public:
     vk::ImageView getImageView(uint32_t index) const { return *images[index].view; }
     vk::Format getColorFormat() const { return surfaceFormat.format; }
 
+    vk::Image getColorImage() const { return colorImage.image; }
+    vk::ImageView getColorImageView() const { return colorImage.view; }
+
     vk::Image getDepthImage() const { return *depthImage.image; }
     vk::ImageView getDepthImageView() const { return *depthImage.view; }
     vk::Format getDepthFormat() const { return depthFormat; }
@@ -27,6 +30,8 @@ public:
 private:
     void createSwapChain(vk::SurfaceKHR surface, vk::Extent2D framebufferSize, const VulkanDevice& device);
 
+    void createColorResources(const VulkanDevice& device);
+
     void createDepthResources(const VulkanDevice& device);
 
     void createTextureResource(const VulkanDevice& device);
@@ -37,6 +42,7 @@ private:
 
     std::vector<ImageHandle> images;
 
+    ImageResource colorImage{};
     ImageResource depthImage{};
     vk::Format depthFormat;
 

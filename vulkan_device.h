@@ -12,6 +12,7 @@ public:
     uint32_t getQueueIndex() const { return queueIndex; }
     const vk::raii::CommandPool& getCommandPool() const { return commandPool; }
     const vk::raii::Sampler& getTextureSampler() const { return textureSampler; }
+    vk::SampleCountFlagBits getMsaaSamples() const { return msaaSamples; }
 
     vk::raii::CommandBuffer beginSingleTimeCommands() const;
 
@@ -33,4 +34,5 @@ private:
     vk::raii::CommandPool commandPool{nullptr};
 
     vk::raii::Sampler textureSampler{nullptr};
+    vk::SampleCountFlagBits msaaSamples = vk::SampleCountFlagBits::e1;
 };

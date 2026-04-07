@@ -59,7 +59,7 @@ Engine::Engine() : glfwManager(),
                    swapChain(window.getSurface(), window.getFramebufferSize(), device),
                    frameDescriptorSetLayout(createDescriptorSetLayout()),
                    objectDescriptorSetLayout(createDescriptorSetLayout()),
-                   graphicsPipeline(device.getDevice(), swapChain.getColorFormat(), swapChain.getDepthFormat(),
+                   graphicsPipeline(device, swapChain.getColorFormat(), swapChain.getDepthFormat(),
                                     frameDescriptorSetLayout,
                                     objectDescriptorSetLayout),
                    descriptorPool(createDescriptorPool()) {
@@ -232,8 +232,10 @@ void Engine::drawFrame() {
     device.getDevice().resetFences(*currentFrame.getInFlightFence());
 
     RenderTarget target{
-        .colorImage = swapChain.getImage(imageIndex),
-        .colorImageView = swapChain.getImageView(imageIndex),
+        .swapChainImage = swapChain.getImage(imageIndex),
+        .swapChainImageView = swapChain.getImageView(imageIndex),
+        .colorImage = swapChain.getColorImage(),
+        .colorImageView = swapChain.getColorImageView(),
         .depthImage = swapChain.getDepthImage(),
         .depthImageView = swapChain.getDepthImageView(),
         .extent = swapChain.getExtent()
