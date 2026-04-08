@@ -69,7 +69,7 @@ namespace Image {
             .image = image,
             .viewType = vk::ImageViewType::e2D,
             .format = format,
-            .subresourceRange = {aspectFlags, 0, 1, 0, 1}
+            .subresourceRange = {aspectFlags, 0, vk::RemainingMipLevels, 0, 1}
         };
         return {device.getDevice(), createInfo};
     }
@@ -83,8 +83,7 @@ namespace Image {
         vk::PipelineStageFlags2 srcStageMask,
         vk::PipelineStageFlags2 dstStageMask,
         vk::ImageAspectFlags imageAspectFlags,
-        const vk::raii::CommandBuffer& commandBuffer
-    ) {
+        const vk::raii::CommandBuffer& commandBuffer) {
         vk::ImageMemoryBarrier2 barrier = {
             .srcStageMask = srcStageMask,
             .srcAccessMask = srcAccessMask,
@@ -98,7 +97,7 @@ namespace Image {
             .subresourceRange = {
                 .aspectMask = imageAspectFlags,
                 .baseMipLevel = 0,
-                .levelCount = 1,
+                .levelCount = vk::RemainingMipLevels,
                 .baseArrayLayer = 0,
                 .layerCount = 1
             }
@@ -122,41 +121,39 @@ namespace Image {
             throw std::runtime_error("failed to load ktx texture image");
         }
 
-        // get texture dimensions and data
-        uint32_t texWidth = kTexture->baseWidth;
-        uint32_t texHeight = kTexture->baseHeight;
-        ktx_size_t imageSize = ktxTexture_GetImageSize(kTexture, 0);
-
         // transcode and get format
         assert(kTexture->classId == ktxTexture2_c);
 
         auto* ktx2 = reinterpret_cast<ktxTexture2 *>(kTexture);
-
         if (ktxTexture2_NeedsTranscoding(ktx2)) {
             ktxTexture2_TranscodeBasis(ktx2, KTX_TTF_BC7_RGBA, 0);
         }
 
         auto textureFormat = static_cast<vk::Format>(ktx2->vkFormat);
-
         if (textureFormat == vk::Format::eUndefined) {
             textureFormat = vk::Format::eR8G8B8A8Unorm;
         }
 
-        ktx_uint8_t* ktxTextureData = ktxTexture_GetData(kTexture);
+        // get texture dimensions and data
+        uint32_t textureWidth = kTexture->baseWidth;
+        uint32_t textureHeight = kTexture->baseHeight;
+        ktx_size_t textureSize = ktxTexture_GetDataSize(kTexture);
+        ktx_uint8_t* textureData = ktxTexture_GetData(kTexture);
 
         // create staging buffer and copy data
-        auto buffer = Buffer::createAllocation(imageSize, vk::BufferUsageFlagBits::eTransferSrc,
+        auto buffer = Buffer::createAllocation(textureSize, vk::BufferUsageFlagBits::eTransferSrc,
                                                vk::MemoryPropertyFlagBits::eHostVisible |
                                                vk::MemoryPropertyFlagBits::eHostCoherent, device);
-        buffer.copyData(imageSize, ktxTextureData);
+        buffer.copyData(textureSize, textureData);
 
         // create the texture image
-        ImageResource textureImage = createResource(device, texWidth, texHeight, textureFormat,
+        uint32_t mipLevels = kTexture->numLevels;
+        ImageResource textureImage = createResource(device, textureWidth, textureHeight, textureFormat,
                                                     vk::ImageTiling::eOptimal,
                                                     vk::ImageUsageFlagBits::eTransferDst |
                                                     vk::ImageUsageFlagBits::eSampled,
                                                     vk::MemoryPropertyFlagBits::eDeviceLocal,
-                                                    vk::ImageAspectFlagBits::eColor);
+                                                    vk::ImageAspectFlagBits::eColor, mipLevels);
 
         // copy data from staging buffer to texture image
         transitionLayout(textureImage.image,
@@ -170,7 +167,15 @@ namespace Image {
                          commandBuffer
         );
 
-        copyBufferToImage(commandBuffer, buffer.buffer, textureImage.image, texWidth, texHeight);
+        uint32_t mipWidth = textureWidth;
+        uint32_t mipHeight = textureHeight;
+        for (uint32_t i = 0; i < mipLevels; i++) {
+            ktx_size_t offset;
+            ktxTexture_GetImageOffset(kTexture, i, 0, 0, &offset);
+            copyBufferToImage(commandBuffer, buffer.buffer, textureImage.image, mipWidth, mipHeight, offset, i);
+            mipWidth = std::max(1u, mipWidth >> 1);
+            mipHeight = std::max(1u, mipHeight >> 1);
+        }
 
         transitionLayout(textureImage.image,
                          vk::ImageLayout::eTransferDstOptimal,
@@ -191,13 +196,13 @@ namespace Image {
     }
 
     void copyBufferToImage(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Buffer& buffer,
-                           vk::raii::Image& image,
-                           uint32_t width, uint32_t height) {
+                           vk::raii::Image& image, uint32_t width, uint32_t height, uint32_t offset,
+                           uint32_t mipLevel) {
         vk::BufferImageCopy region{
-            .bufferOffset = 0,
+            .bufferOffset = offset,
             .bufferRowLength = 0,
             .bufferImageHeight = 0,
-            .imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+            .imageSubresource = {vk::ImageAspectFlagBits::eColor, mipLevel, 0, 1},
             .imageOffset = {0, 0, 0},
             .imageExtent = {width, height, 1}
         };

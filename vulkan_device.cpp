@@ -6,7 +6,8 @@ namespace {
     vk::SampleCountFlagBits getMaxUsableSampleCount(const vk::raii::PhysicalDevice& physicalDevice) {
         vk::PhysicalDeviceProperties physicalDeviceProperties = physicalDevice.getProperties();
 
-        vk::SampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+        vk::SampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts &
+                                      physicalDeviceProperties.limits.framebufferDepthSampleCounts;
         if (counts & vk::SampleCountFlagBits::e64) { return vk::SampleCountFlagBits::e64; }
         if (counts & vk::SampleCountFlagBits::e32) { return vk::SampleCountFlagBits::e32; }
         if (counts & vk::SampleCountFlagBits::e16) { return vk::SampleCountFlagBits::e16; }
@@ -157,7 +158,9 @@ void VulkanDevice::createTextureSampler() {
         .anisotropyEnable = vk::True,
         .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
         .compareEnable = vk::False,
-        .compareOp = vk::CompareOp::eAlways
+        .compareOp = vk::CompareOp::eAlways,
+        .minLod = 0.0f,
+        .maxLod = vk::LodClampNone,
     };
     textureSampler = vk::raii::Sampler(device, createInfo);
 }

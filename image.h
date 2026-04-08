@@ -25,7 +25,8 @@ namespace Image {
 
     ImageResource createResource(const VulkanDevice& device, uint32_t width, uint32_t height, vk::Format format,
                                  vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
-                                 vk::ImageAspectFlags, uint32_t mipLevels = 1, vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1);
+                                 vk::ImageAspectFlags, uint32_t mipLevels = 1,
+                                 vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1);
 
     vk::raii::ImageView createView(const VulkanDevice& device, vk::Image image, vk::Format format,
                                    vk::ImageAspectFlags aspectFlags);
@@ -37,5 +38,7 @@ namespace Image {
     );
 
     ImageResource createTextureImage(std::string_view path, const VulkanDevice& device);
-    void copyBufferToImage(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height);
+
+    void copyBufferToImage(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Buffer& buffer,
+                           vk::raii::Image& image, uint32_t width, uint32_t height, uint32_t offset, uint32_t mipLevel);
 };
