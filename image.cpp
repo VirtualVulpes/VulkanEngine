@@ -7,7 +7,8 @@
 
 namespace {
     vk::raii::Image createImage(const VulkanDevice& device, uint32_t width, uint32_t height, vk::Format format,
-                                vk::ImageTiling tiling, vk::ImageUsageFlags usage, uint32_t mipLevels = 1, vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1) {
+                                vk::ImageTiling tiling, vk::ImageUsageFlags usage, uint32_t mipLevels = 1,
+                                vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1) {
         vk::ImageCreateInfo imageInfo{
             .imageType = vk::ImageType::e2D,
             .format = format,
@@ -50,7 +51,8 @@ namespace Image {
 
     ImageResource createResource(const VulkanDevice& device, uint32_t width, uint32_t height, vk::Format format,
                                  vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
-                                 vk::ImageAspectFlags aspectFlags, uint32_t mipLevels, vk::SampleCountFlagBits samples) {
+                                 vk::ImageAspectFlags aspectFlags, uint32_t mipLevels,
+                                 vk::SampleCountFlagBits samples) {
         ImageResource resource;
 
         resource.image = createImage(device, width, height, format, tiling, usage, mipLevels, samples);
@@ -124,16 +126,29 @@ namespace Image {
         uint32_t texWidth = kTexture->baseWidth;
         uint32_t texHeight = kTexture->baseHeight;
         ktx_size_t imageSize = ktxTexture_GetImageSize(kTexture, 0);
+
+        // transcode and get format
+        assert(kTexture->classId == ktxTexture2_c);
+
+        auto* ktx2 = reinterpret_cast<ktxTexture2 *>(kTexture);
+
+        if (ktxTexture2_NeedsTranscoding(ktx2)) {
+            ktxTexture2_TranscodeBasis(ktx2, KTX_TTF_BC7_RGBA, 0);
+        }
+
+        auto textureFormat = static_cast<vk::Format>(ktx2->vkFormat);
+
+        if (textureFormat == vk::Format::eUndefined) {
+            textureFormat = vk::Format::eR8G8B8A8Unorm;
+        }
+
         ktx_uint8_t* ktxTextureData = ktxTexture_GetData(kTexture);
 
         // create staging buffer and copy data
         auto buffer = Buffer::createAllocation(imageSize, vk::BufferUsageFlagBits::eTransferSrc,
-                                     vk::MemoryPropertyFlagBits::eHostVisible |
-                                     vk::MemoryPropertyFlagBits::eHostCoherent, device);
+                                               vk::MemoryPropertyFlagBits::eHostVisible |
+                                               vk::MemoryPropertyFlagBits::eHostCoherent, device);
         buffer.copyData(imageSize, ktxTextureData);
-
-        // determine the Vulkan format from KTX format
-        vk::Format textureFormat = vk::Format::eR8G8B8A8Srgb; // default format, should be determined from KTX metadata
 
         // create the texture image
         ImageResource textureImage = createResource(device, texWidth, texHeight, textureFormat,
@@ -175,7 +190,8 @@ namespace Image {
         return textureImage;
     }
 
-    void copyBufferToImage(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Buffer& buffer, vk::raii::Image& image,
+    void copyBufferToImage(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Buffer& buffer,
+                           vk::raii::Image& image,
                            uint32_t width, uint32_t height) {
         vk::BufferImageCopy region{
             .bufferOffset = 0,
