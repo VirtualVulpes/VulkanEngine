@@ -133,6 +133,7 @@ void SwapChain::createDepthResources(const VulkanDevice& device) {
 void SwapChain::createTextureResource(const VulkanDevice& device) {
     textureImages.push_back(Image::createTextureImage("textures/texture.ktx2", device));
     textureImages.push_back(Image::createTextureImage("textures/texture_i.ktx2", device));
+    textureImages.push_back(Image::createTextureImage("textures/crazy.ktx2", device));
 }
 
 void SwapChain::recreate(const Window& window, const VulkanDevice& device) {

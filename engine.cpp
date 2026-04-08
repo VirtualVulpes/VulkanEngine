@@ -70,9 +70,9 @@ Engine::Engine() : glfwManager(),
 void Engine::createScene() {
     meshes.emplace_back(device, Shape::Plane);
     meshes.emplace_back(device, Shape::Cube);
-    objects.emplace_back(device, descriptorPool, objectDescriptorSetLayout, Transform{}, meshes.at(0), 0);
+    objects.emplace_back(device, descriptorPool, objectDescriptorSetLayout, Transform{}, meshes.at(0), 2);
     Transform cubeTransform{{0.0f, 0.0f, 0.5f}, {0.0f, 0.0f, 0.0f}, {0.5f, 0.5f, 0.5f}};
-    objects.emplace_back(device, descriptorPool, objectDescriptorSetLayout, cubeTransform, meshes.at(1), 1);
+    objects.emplace_back(device, descriptorPool, objectDescriptorSetLayout, cubeTransform, meshes.at(1), 2);
 }
 
 void Engine::run() {
