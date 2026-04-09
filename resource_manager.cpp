@@ -7,12 +7,62 @@
 #include "tiny_gltf.h"
 #include "vulkan_device.h"
 
+namespace {
+    Assets::TextureData loadKTX2(const std::filesystem::path& path) {
+        ktxTexture2* ktxTex2;
+        KTX_error_code result = ktxTexture2_CreateFromNamedFile(
+            path.string().data(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTex2);
+
+        if (result != KTX_SUCCESS) {
+            throw std::runtime_error("failed to load ktx texture image");
+        }
+
+        if (ktxTexture2_NeedsTranscoding(ktxTex2)) {
+            ktxTexture2_TranscodeBasis(ktxTex2, KTX_TTF_BC7_RGBA, 0);
+        }
+
+        auto format = static_cast<vk::Format>(ktxTex2->vkFormat);
+        if (format == vk::Format::eUndefined) {
+            format = vk::Format::eR8G8B8A8Unorm;
+        }
+
+        std::cout << vk::to_string(format) << std::endl;
+
+        // get texture dimensions and data
+        uint32_t width = ktxTex2->baseWidth;
+        uint32_t height = ktxTex2->baseHeight;
+
+        ktxTexture* base = ktxTexture(ktxTex2);
+        ktx_size_t size = ktxTexture_GetDataSize(base);
+        ktx_uint8_t* raw = ktxTexture_GetData(base);
+
+        auto mipLevels = ktxTex2->numLevels;
+
+        Assets::TextureData data = {
+            .pixels = std::vector(reinterpret_cast<std::byte *>(raw), reinterpret_cast<std::byte *>(raw) + size),
+            .width = width,
+            .height = height,
+            .mipLevels = mipLevels,
+            .format = format
+        };
+
+        data.mipOffsets.resize(mipLevels);
+        for (uint32_t i = 0; i < mipLevels; i++) {
+            ktx_size_t offset;
+            ktxTexture2_GetImageOffset(ktxTex2, i, 0, 0, &offset);
+            data.mipOffsets[i] = offset;
+        }
+
+        ktxTexture2_Destroy(ktxTex2);
+        return data;
+    }
+}
+
 ResourceManager::ResourceManager(const VulkanDevice& device) : device(device),
                                                                frameLayout(createFrameLayout()),
                                                                materialLayout(createMaterialLayout()),
                                                                objectLayout(createObjectLayout()),
-                                                               descriptorPool(createDescriptorPool()),
-                                                               textureSampler(createTextureSampler()) {
+                                                               descriptorPool(createDescriptorPool()) {
 }
 
 Mesh& ResourceManager::loadMesh(std::string_view name, const Assets::MeshData& data) {
@@ -106,52 +156,12 @@ Mesh& ResourceManager::loadMesh(std::string_view name) {
     return it->second;
 }
 
-Texture& ResourceManager::loadTexture(std::string_view name) {
+Texture& ResourceManager::loadTexture(std::string_view name, const Assets::SamplerConfig& samplerConfig) {
+    if (auto it = textures.find(std::string{name}); it != textures.end())
+        return it->second;
+
     std::filesystem::path path = Config::texturePath / name;
-
-    ktxTexture2* ktxTex2;
-    KTX_error_code result = ktxTexture2_CreateFromNamedFile(
-        path.string().data(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTex2);
-
-    if (result != KTX_SUCCESS) {
-        throw std::runtime_error("failed to load ktx texture image");
-    }
-
-    if (ktxTexture2_NeedsTranscoding(ktxTex2)) {
-        ktxTexture2_TranscodeBasis(ktxTex2, KTX_TTF_BC7_RGBA, 0);
-    }
-
-    auto format = static_cast<vk::Format>(ktxTex2->vkFormat);
-    if (format == vk::Format::eUndefined) {
-        format = vk::Format::eR8G8B8A8Unorm;
-    }
-
-    // get texture dimensions and data
-    uint32_t width = ktxTex2->baseWidth;
-    uint32_t height = ktxTex2->baseHeight;
-
-    ktxTexture* base = ktxTexture(ktxTex2);
-    ktx_size_t size = ktxTexture_GetDataSize(base);
-    ktx_uint8_t* raw = ktxTexture_GetData(base);
-
-    auto mipLevels = ktxTex2->numLevels;
-
-    Assets::TextureData data = {
-        .pixels = std::vector(reinterpret_cast<std::byte *>(raw), reinterpret_cast<std::byte *>(raw) + size),
-        .width = width,
-        .height = height,
-        .mipLevels = mipLevels,
-        .format = format
-    };
-
-    data.mipOffsets.resize(mipLevels);
-    for (uint32_t i = 0; i < mipLevels; i++) {
-        ktx_size_t offset;
-        ktxTexture2_GetImageOffset(ktxTex2, i, 0, 0, &offset);
-        data.mipOffsets[i] = offset;
-    }
-
-    ktxTexture2_Destroy(ktxTex2);
+    auto data = loadKTX2(path);
 
     ImageConfig config{
         .tiling = vk::ImageTiling::eOptimal,
@@ -165,10 +175,25 @@ Texture& ResourceManager::loadTexture(std::string_view name) {
         .descriptorSetCount = 1,
         .pSetLayouts = &*materialLayout
     };
-    auto [it, inserted] = textures.try_emplace(path.stem().string(), device, data, config, textureSampler,
+    auto [it, inserted] = textures.try_emplace(path.stem().string(), device, data, config,
                                                std::move(device.getDevice().allocateDescriptorSets(allocInfo).front()));
+    Texture& texture = it->second;
 
-    return it->second;
+    // write sampler
+    vk::Sampler sampler = getSampler(samplerConfig);
+    vk::DescriptorImageInfo samplerInfo{
+        .sampler = sampler
+    };
+    vk::WriteDescriptorSet samplerWrite{
+        .dstSet = texture.getDescriptorSet(),
+        .dstBinding = 1,
+        .descriptorCount = 1,
+        .descriptorType = vk::DescriptorType::eSampler,
+        .pImageInfo = &samplerInfo
+    };
+    device.getDevice().updateDescriptorSets(samplerWrite, nullptr);
+
+    return texture;
 }
 
 vk::raii::DescriptorSetLayout ResourceManager::createFrameLayout() {
@@ -186,15 +211,23 @@ vk::raii::DescriptorSetLayout ResourceManager::createFrameLayout() {
 }
 
 vk::raii::DescriptorSetLayout ResourceManager::createMaterialLayout() {
-    vk::DescriptorSetLayoutBinding binding{
-        .binding = 0,
-        .descriptorType = vk::DescriptorType::eCombinedImageSampler,
-        .descriptorCount = 1,
-        .stageFlags = vk::ShaderStageFlagBits::eFragment
+    std::array bindings{
+        vk::DescriptorSetLayoutBinding{
+            .binding = 0,
+            .descriptorType = vk::DescriptorType::eSampledImage,
+            .descriptorCount = 1,
+            .stageFlags = vk::ShaderStageFlagBits::eFragment
+        },
+        vk::DescriptorSetLayoutBinding{
+            .binding = 1,
+            .descriptorType = vk::DescriptorType::eSampler,
+            .descriptorCount = 1,
+            .stageFlags = vk::ShaderStageFlagBits::eFragment
+        }
     };
     vk::DescriptorSetLayoutCreateInfo layoutInfo{
-        .bindingCount = 1,
-        .pBindings = &binding
+        .bindingCount = 2,
+        .pBindings = bindings.data()
     };
     return device.getDevice().createDescriptorSetLayout(layoutInfo);
 }
@@ -220,14 +253,18 @@ vk::raii::DescriptorPool ResourceManager::createDescriptorPool() {
             .descriptorCount = Config::MAX_FRAMES_IN_FLIGHT * (1 + Config::MAX_OBJECTS) // frame + object sets
         },
         vk::DescriptorPoolSize{
-            .type = vk::DescriptorType::eCombinedImageSampler,
+            .type = vk::DescriptorType::eSampledImage,
             .descriptorCount = Config::MAX_TEXTURES
+        },
+        vk::DescriptorPoolSize{
+            .type = vk::DescriptorType::eSampler,
+            .descriptorCount = Config::MAX_SAMPLERS
         }
     };
 
     vk::DescriptorPoolCreateInfo info{
         .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-        .maxSets = Config::MAX_FRAMES_IN_FLIGHT + Config::MAX_OBJECTS + Config::MAX_TEXTURES,
+        .maxSets = Config::MAX_FRAMES_IN_FLIGHT + Config::MAX_OBJECTS + Config::MAX_TEXTURES + Config::MAX_SAMPLERS,
         .poolSizeCount = poolSizes.size(),
         .pPoolSizes = poolSizes.data()
     };
@@ -235,18 +272,23 @@ vk::raii::DescriptorPool ResourceManager::createDescriptorPool() {
     return device.getDevice().createDescriptorPool(info);
 }
 
-vk::raii::Sampler ResourceManager::createTextureSampler() {
+vk::Sampler ResourceManager::getSampler(const Assets::SamplerConfig& config) {
+    auto [it, inserted] = textureSamplers.try_emplace(config, createSampler(config));
+    return *it->second;
+}
+
+vk::raii::Sampler ResourceManager::createSampler(Assets::SamplerConfig config) {
     vk::PhysicalDeviceProperties properties = device.getPhysicalDevice().getProperties();
     vk::SamplerCreateInfo createInfo{
-        .magFilter = vk::Filter::eLinear,
-        .minFilter = vk::Filter::eLinear,
-        .mipmapMode = vk::SamplerMipmapMode::eLinear,
-        .addressModeU = vk::SamplerAddressMode::eRepeat,
-        .addressModeV = vk::SamplerAddressMode::eRepeat,
-        .addressModeW = vk::SamplerAddressMode::eRepeat,
+        .magFilter = config.filter,
+        .minFilter = config.filter,
+        .mipmapMode = config.mipmapMode,
+        .addressModeU = config.addressMode,
+        .addressModeV = config.addressMode,
+        .addressModeW = config.addressMode,
         .mipLodBias = 0.0f,
-        .anisotropyEnable = vk::True,
-        .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+        .anisotropyEnable = config.anisotropy,
+        .maxAnisotropy = config.anisotropy ? properties.limits.maxSamplerAnisotropy : 1.0f,
         .compareEnable = vk::False,
         .compareOp = vk::CompareOp::eAlways,
         .minLod = 0.0f,

@@ -1,5 +1,7 @@
 #include "vulkan_device.h"
 
+#include <iostream>
+
 #include "constants.h"
 
 namespace {
@@ -67,7 +69,13 @@ void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const 
                 features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
                 features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
 
+
         if (supportsVulkanVersion && supportsQueue && supportsExtensions && supportsRequiredFeatures) {
+            vk::FormatProperties formatProperties = availableDevice.getFormatProperties(vk::Format::eBc7SrgbBlock);
+            if (!(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImage)) {
+                std::cout << "doesnt support bc7" << std::endl;
+            }
+
             physicalDevice = availableDevice;
             queueIndex = foundQueueIndex;
             return;

@@ -12,21 +12,25 @@
 #include "object.h"
 #include "resource_manager.h"
 
-class Engine
-{
+class Engine {
 public:
     Engine();
+
     void run();
 
 private:
     vk::raii::Instance createInstance();
+
     vk::raii::DebugUtilsMessengerEXT createDebugMessenger();
 
     void createImageResources();
+
     void createFrameResources();
 
     void createScene();
+
     void update();
+
     void drawFrame();
 
     GLFWManager glfwManager;
@@ -40,7 +44,7 @@ private:
     GraphicsPipeline graphicsPipeline;
 
     std::vector<FrameResources> frameResources;
-    std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
+    std::vector<vk::raii::Semaphore> renderFinishedSemaphores; // outside of frame resources, not one per frame
     uint32_t frameIndex{0};
 
     std::vector<Object> objects{};

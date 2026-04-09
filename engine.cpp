@@ -72,8 +72,14 @@ void Engine::createScene() {
     resources.loadMesh("cube", Shape::cube());
     resources.loadMesh("viking_room.glb");
 
+    Assets::SamplerConfig samplerConfig{
+        .filter = vk::Filter::eNearest,
+        .mipmapMode = vk::SamplerMipmapMode::eNearest,
+        .addressMode = vk::SamplerAddressMode::eClampToEdge,
+        .anisotropy = false
+    };
     resources.loadTexture("viking_room.ktx2");
-    resources.loadTexture("statue.ktx2");
+    resources.loadTexture("dirt.ktx2", samplerConfig);
 
     // viking room
     objects.emplace_back(device, resources.getPool(), resources.getObjectLayout(), Transform{},
@@ -82,8 +88,7 @@ void Engine::createScene() {
     // cube
     Transform cubeTransform{{-2.0f, 0.0f, 0.5f}, {0.0f, 0.0f, 0.0f}, {0.5f, 0.5f, 0.5f}};
     objects.emplace_back(device, resources.getPool(), resources.getObjectLayout(), cubeTransform,
-                         resources.getMesh("cube"),
-                         resources.getTexture("statue"));
+                         resources.getMesh("cube"), resources.getTexture("dirt"));
 }
 
 void Engine::run() {
@@ -155,7 +160,7 @@ void Engine::createFrameResources() {
     frameResources.reserve(Config::MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < Config::MAX_FRAMES_IN_FLIGHT; ++i) {
-        frameResources.emplace_back(device, resources.getPool(), resources.getFrameLayout(), resources.getTextureSampler());
+        frameResources.emplace_back(device, resources.getPool(), resources.getFrameLayout());
     }
 }
 

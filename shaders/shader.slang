@@ -37,9 +37,12 @@ VSOutput vertMain(VSInput input) {
 }
 
 [[vk::binding(0, 1)]]
-Sampler2D texSampler;
+Texture2D texture;
+
+[[vk::binding(1, 1)]]
+SamplerState texSampler;
 
 [shader("fragment")]
 float4 fragMain(VSOutput vertIn) : SV_Target {
-   return texSampler.Sample(vertIn.uv) * float4(vertIn.color, 1.0);
+   return texture.Sample(texSampler, vertIn.uv) * float4(vertIn.color, 1.0);
 }

@@ -5,7 +5,7 @@
 #include "assets.h"
 #include "vulkan_device.h"
 
-Texture::Texture(const VulkanDevice& device, const Assets::TextureData& data, const ImageConfig& config, vk::Sampler sampler, vk::raii::DescriptorSet descriptorSet) : sampler(sampler), descriptor(std::move(descriptorSet)) {
+Texture::Texture(const VulkanDevice& device, const Assets::TextureData& data, const ImageConfig& config, vk::raii::DescriptorSet descriptorSet) : descriptor(std::move(descriptorSet)) {
     image = Image::createResource(device, data.width, data.height, data.mipLevels, config, data.format);
 
     auto commandBuffer = device.beginSingleTimeCommands();
@@ -50,7 +50,6 @@ Texture::Texture(const VulkanDevice& device, const Assets::TextureData& data, co
     device.endSingleTimeCommands(commandBuffer);
 
     vk::DescriptorImageInfo imageInfo{
-        .sampler     = sampler,
         .imageView   = *image.view,
         .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
     };
@@ -58,9 +57,8 @@ Texture::Texture(const VulkanDevice& device, const Assets::TextureData& data, co
     vk::WriteDescriptorSet write{
         .dstSet          = *descriptor,
         .dstBinding      = 0,
-        .dstArrayElement = 0,
         .descriptorCount = 1,
-        .descriptorType  = vk::DescriptorType::eCombinedImageSampler,
+        .descriptorType  = vk::DescriptorType::eSampledImage,
         .pImageInfo      = &imageInfo
     };
 

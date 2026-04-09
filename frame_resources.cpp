@@ -6,7 +6,7 @@
 #include "texture.h"
 
 FrameResources::FrameResources(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
-                               vk::DescriptorSetLayout descriptorSetLayout, vk::Sampler textureSampler) {
+                               vk::DescriptorSetLayout descriptorSetLayout) {
     vk::CommandBufferAllocateInfo allocateInfo{
         .commandPool = device.getCommandPool(),
         .level = vk::CommandBufferLevel::ePrimary,
