@@ -61,7 +61,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
                                          vk::PipelineLayout pipelineLayout,
                                          vk::DescriptorSet frameDescriptorSet, RenderTarget renderTarget,
                                          uint32_t frameIndex,
-                                         const std::vector<Object>& objects) const {
+                                         std::span<const Object* const> objects) const {
     commandBuffer.begin({});
 
     Image::transitionLayout(
@@ -144,9 +144,9 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
     vk::Buffer currentVertexBuffer{nullptr};
     vk::Buffer currentIndexBuffer{nullptr};
 
-    for (const auto& object : objects) {
+    for (const auto* object : objects) {
         // bind texture
-        vk::DescriptorSet textureDescriptor = object.getTexture().getDescriptorSet();
+        vk::DescriptorSet textureDescriptor = object->getTexture().getDescriptorSet();
         if (textureDescriptor != currentTexture) {
             commandBuffer.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics,
@@ -159,16 +159,16 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         }
 
         // bind vertex buffer
-        vk::Buffer vertexBuffer = *object.getMesh().getVertexBuffer().buffer;
+        vk::Buffer vertexBuffer = *object->getMesh().getVertexBuffer().buffer;
         if (vertexBuffer != currentVertexBuffer) {
             commandBuffer.bindVertexBuffers(0, vertexBuffer, {0});
             currentVertexBuffer = vertexBuffer;
         }
 
         // bind index buffer
-        vk::Buffer indexBuffer = *object.getMesh().getIndexBuffer().buffer;
+        vk::Buffer indexBuffer = *object->getMesh().getIndexBuffer().buffer;
         if (indexBuffer != currentIndexBuffer) {
-            commandBuffer.bindIndexBuffer(indexBuffer, 0, object.getMesh().getIndexType());
+            commandBuffer.bindIndexBuffer(indexBuffer, 0, object->getMesh().getIndexType());
             currentIndexBuffer = indexBuffer;
         }
 
@@ -177,10 +177,10 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
             vk::PipelineBindPoint::eGraphics,
             pipelineLayout,
             2,
-            {object.getDescriptorSet(frameIndex)},
+            {object->getDescriptorSet(frameIndex)},
             {}
         );
-        commandBuffer.drawIndexed(object.getMesh().getIndexAmount(), 1, 0, 0, 0);
+        commandBuffer.drawIndexed(object->getMesh().getIndexAmount(), 1, 0, 0, 0);
     }
 
     commandBuffer.endRendering();

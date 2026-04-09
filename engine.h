@@ -7,10 +7,9 @@
 #include "frame_resources.h"
 #include "glfw_manager.h"
 #include "graphics_pipeline.h"
-#include "mesh.h"
 #include "swap_chain.h"
-#include "object.h"
 #include "resource_manager.h"
+#include "scene.h"
 
 class Engine {
 public:
@@ -26,6 +25,8 @@ private:
     void createImageResources();
 
     void createFrameResources();
+
+    void loadAssets();
 
     void createScene();
 
@@ -47,7 +48,7 @@ private:
     std::vector<vk::raii::Semaphore> renderFinishedSemaphores; // outside of frame resources, not one per frame
     uint32_t frameIndex{0};
 
-    std::vector<Object> objects{};
+    Scene scene{};
 
     std::chrono::steady_clock::time_point lastTime;
 };

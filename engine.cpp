@@ -67,34 +67,43 @@ Engine::Engine() : glfwManager(),
     createFrameResources();
 }
 
-void Engine::createScene() {
+void Engine::loadAssets() {
+    // --- Meshes ---
+
     resources.loadMesh("plane", Shape::plane());
     resources.loadMesh("cube", Shape::cube());
     resources.loadMesh("viking_room.glb");
 
-    Assets::SamplerConfig samplerConfig{
+    // --- Textures ---
+
+    Assets::SamplerConfig lowResSampler{
         .filter = vk::Filter::eNearest,
         .mipmapMode = vk::SamplerMipmapMode::eNearest,
         .addressMode = vk::SamplerAddressMode::eClampToEdge,
         .anisotropy = false
     };
     resources.loadTexture("viking_room.ktx2");
-    resources.loadTexture("dirt.ktx2", samplerConfig);
+    resources.loadTexture("dirt.ktx2", lowResSampler);
+}
 
-    // viking room
-    objects.emplace_back(device, resources.getPool(), resources.getObjectLayout(), Transform{},
-                         resources.getMesh("viking_room"), resources.getTexture("viking_room"));
+void Engine::createScene() {
+    scene.addObject({
+        device, resources.getPool(), resources.getObjectLayout(), Transform{},
+        resources.getMesh("viking_room"), resources.getTexture("viking_room")
+    });
 
-    // cube
     Transform cubeTransform{{-2.0f, 0.0f, 0.5f}, {0.0f, 0.0f, 0.0f}, {0.5f, 0.5f, 0.5f}};
-    objects.emplace_back(device, resources.getPool(), resources.getObjectLayout(), cubeTransform,
-                         resources.getMesh("cube"), resources.getTexture("dirt"));
+    scene.addObject({
+        device, resources.getPool(), resources.getObjectLayout(), cubeTransform,
+        resources.getMesh("cube"), resources.getTexture("dirt")
+    });
 }
 
 void Engine::run() {
-    lastTime = std::chrono::steady_clock::now();
-
+    loadAssets();
     createScene();
+
+    lastTime = std::chrono::steady_clock::now();
     while (!window.shouldClose()) {
         window.pollEvents();
         update();
@@ -169,8 +178,15 @@ void Engine::update() {
     float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
     lastTime = currentTime;
 
-    objects.at(0).getTransform().rotate(glm::vec3(0.0f, 45.0f, 0.0f) * deltaTime);
-    objects.at(1).getTransform().rotate(glm::vec3(-40.0f, 30.0f, -20.0f) * deltaTime);
+    for (auto& [id, object] : scene.getObjects()) {
+        if (id == 0) {
+            object.getTransform().rotate(glm::vec3(0.0f, 45.0f, 0.0f) * deltaTime);
+        }
+
+        if (id == 1) {
+            object.getTransform().rotate(glm::vec3(-40.0f, 30.0f, -20.0f) * deltaTime);
+        }
+    }
 }
 
 void Engine::drawFrame() {
@@ -198,8 +214,11 @@ void Engine::drawFrame() {
     frameData.proj[1][1] *= -1;
     currentFrame.updateFrameData(frameData);
 
-    for (const auto& object : objects) {
-        object.updateTransform();
+    std::vector<const Object*> drawList;
+    drawList.reserve(scene.getObjects().size());
+    for (ObjectID id : scene.getDrawOrder()) {
+        scene.getObject(id).updateTransform();
+        drawList.push_back(&scene.getObject(id));
     }
 
     device.getDevice().resetFences(*currentFrame.getInFlightFence());
@@ -215,7 +234,7 @@ void Engine::drawFrame() {
     };
 
     currentFrame.recordCommandBuffer(*graphicsPipeline.getPipeline(), *graphicsPipeline.getLayout(),
-                                     *currentFrame.getDescriptorSet(), target, frameIndex, objects);
+                                     *currentFrame.getDescriptorSet(), target, frameIndex, drawList);
 
     vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
     const vk::SubmitInfo submitInfo{

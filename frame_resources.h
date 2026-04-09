@@ -37,7 +37,7 @@ public:
                              vk::DescriptorSet frameDescriptorSet,
                              RenderTarget renderTarget,
                              uint32_t frameIndex,
-                             const std::vector<Object>& objects) const;
+                             std::span<const Object* const> objects) const;
 
     void resetCommandBuffer() { commandBuffer.reset(); }
 

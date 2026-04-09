@@ -26,8 +26,6 @@ namespace {
             format = vk::Format::eR8G8B8A8Unorm;
         }
 
-        std::cout << vk::to_string(format) << std::endl;
-
         // get texture dimensions and data
         uint32_t width = ktxTex2->baseWidth;
         uint32_t height = ktxTex2->baseHeight;

@@ -111,6 +111,8 @@ add_executable (${TEMPLATE_NAME} main.cpp
         texture.h
         assets.h
         utils.h
+        scene.cpp
+        scene.h
 )
 
 set_target_properties (${TEMPLATE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEMPLATE_DIR})
