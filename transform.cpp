@@ -27,6 +27,11 @@ void Transform::rotate(glm::vec3 offset) {
     isDirty = true;
 }
 
+void Transform::move(glm::vec3 offset) {
+    position += offset;
+    isDirty = true;
+}
+
 void Transform::recalculateModelMatrix() const {
     model = glm::mat4(1.0f);
     model = glm::translate(model, position);

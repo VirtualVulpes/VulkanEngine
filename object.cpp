@@ -6,14 +6,12 @@
 namespace {
     struct ObjectData {
         glm::mat4x4 model;
-        uint32_t textureId;
     };
 }
 
 Object::Object(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
-               vk::DescriptorSetLayout descriptorSetLayout, const Transform& transform, const Mesh& mesh,
-               uint32_t textureId) : transform(transform), mesh(mesh),
-                                     textureId(textureId) {
+               vk::DescriptorSetLayout descriptorSetLayout, const Transform& transform, Mesh& mesh,
+               Texture& texture) : transform(transform), mesh(mesh), texture(texture) {
     for (auto& buffer : objectBuffers) {
         buffer = Buffer::createMapped(sizeof(ObjectData), vk::BufferUsageFlagBits::eUniformBuffer, device);
     }
@@ -54,7 +52,6 @@ void Object::updateTransform() const {
     for (const auto& buffer : objectBuffers) {
         ObjectData data{
             .model = transform.getModelMatrix(),
-            .textureId = textureId
         };
         memcpy(buffer.mappedPtr, &data, sizeof(ObjectData));
     }

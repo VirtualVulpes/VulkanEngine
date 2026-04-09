@@ -10,6 +10,7 @@
 #include "mesh.h"
 #include "swap_chain.h"
 #include "object.h"
+#include "resource_manager.h"
 
 class Engine
 {
@@ -24,9 +25,6 @@ private:
     void createImageResources();
     void createFrameResources();
 
-    vk::raii::DescriptorPool createDescriptorPool();
-    vk::raii::DescriptorSetLayout createDescriptorSetLayout();
-
     void createScene();
     void update();
     void drawFrame();
@@ -38,17 +36,13 @@ private:
     Window window;
     VulkanDevice device;
     SwapChain swapChain;
-    vk::raii::DescriptorSetLayout frameDescriptorSetLayout{nullptr};
-    vk::raii::DescriptorSetLayout objectDescriptorSetLayout{nullptr};
+    ResourceManager resources;
     GraphicsPipeline graphicsPipeline;
-
-    vk::raii::DescriptorPool descriptorPool{nullptr};
 
     std::vector<FrameResources> frameResources;
     std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
     uint32_t frameIndex{0};
 
-    std::vector<Mesh> meshes{};
     std::vector<Object> objects{};
 
     std::chrono::steady_clock::time_point lastTime;

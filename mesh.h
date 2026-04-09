@@ -1,7 +1,5 @@
 #pragma once
 
-#include <glm/gtc/matrix_transform.hpp>
-
 #include "buffer.h"
 #include "vertex.h"
 
@@ -9,7 +7,7 @@ class VulkanDevice;
 
 class Mesh {
 public:
-    explicit Mesh(const VulkanDevice& device, const ModelData& modelData);
+    explicit Mesh(const VulkanDevice& device, const Assets::MeshData& meshData);
 
     const BufferAllocation& getVertexBuffer() const { return vertexBuffer; }
     size_t getVertexAmount() const { return vertices.size(); }
@@ -18,9 +16,10 @@ public:
     vk::IndexType getIndexType() const { return vk::IndexTypeValue<decltype(indices)::value_type>::value; }
 
 private:
-    const std::vector<Vertex> vertices{};
+    void createBuffers(const VulkanDevice& device);
 
-    const std::vector<uint32_t> indices{};
+    std::vector<Vertex> vertices{};
+    std::vector<uint32_t> indices{};
 
     BufferAllocation vertexBuffer;
     BufferAllocation indexBuffer;

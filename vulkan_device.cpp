@@ -24,7 +24,6 @@ VulkanDevice::VulkanDevice(const vk::raii::Instance& instance, const vk::raii::S
     msaaSamples = getMaxUsableSampleCount(physicalDevice);
     createLogicalDevice();
     createCommandPool();
-    createTextureSampler();
 }
 
 void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface) {
@@ -143,24 +142,4 @@ void VulkanDevice::endSingleTimeCommands(const vk::raii::CommandBuffer& commandB
     vk::SubmitInfo submitInfo{.commandBufferCount = 1, .pCommandBuffers = &*commandBuffer};
     graphicsQueue.submit(submitInfo, nullptr);
     graphicsQueue.waitIdle();
-}
-
-void VulkanDevice::createTextureSampler() {
-    vk::PhysicalDeviceProperties properties = physicalDevice.getProperties();
-    vk::SamplerCreateInfo createInfo{
-        .magFilter = vk::Filter::eLinear,
-        .minFilter = vk::Filter::eLinear,
-        .mipmapMode = vk::SamplerMipmapMode::eLinear,
-        .addressModeU = vk::SamplerAddressMode::eRepeat,
-        .addressModeV = vk::SamplerAddressMode::eRepeat,
-        .addressModeW = vk::SamplerAddressMode::eRepeat,
-        .mipLodBias = 0.0f,
-        .anisotropyEnable = vk::True,
-        .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
-        .compareEnable = vk::False,
-        .compareOp = vk::CompareOp::eAlways,
-        .minLod = 0.0f,
-        .maxLod = vk::LodClampNone,
-    };
-    textureSampler = vk::raii::Sampler(device, createInfo);
 }

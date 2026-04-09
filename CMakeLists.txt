@@ -105,6 +105,11 @@ add_executable (${TEMPLATE_NAME} main.cpp
         transform.cpp
         object.h
         object.cpp
+        resource_manager.cpp
+        resource_manager.h
+        texture.cpp
+        texture.h
+        assets.h
 )
 
 set_target_properties (${TEMPLATE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEMPLATE_DIR})
@@ -113,6 +118,7 @@ target_link_libraries (${TEMPLATE_NAME}
         Vulkan::cppm
         glfw
         KTX::ktx
+        tinygltf::tinygltf
 )
 target_include_directories (${TEMPLATE_NAME} PRIVATE ${STB_INCLUDEDIR})
 

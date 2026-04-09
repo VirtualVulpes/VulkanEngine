@@ -1,9 +1,11 @@
 #include "engine.h"
 
 #include <iostream>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "constants.h"
 #include "object.h"
+#include "resource_manager.h"
 #include "transform.h"
 
 namespace {
@@ -57,22 +59,31 @@ Engine::Engine() : glfwManager(),
                    window(Config::WIDTH, Config::HEIGHT, "Vulkan Engine", instance),
                    device(instance, window.getSurface()),
                    swapChain(window.getSurface(), window.getFramebufferSize(), device),
-                   frameDescriptorSetLayout(createDescriptorSetLayout()),
-                   objectDescriptorSetLayout(createDescriptorSetLayout()),
+                   resources(device),
                    graphicsPipeline(device, swapChain.getColorFormat(), swapChain.getDepthFormat(),
-                                    frameDescriptorSetLayout,
-                                    objectDescriptorSetLayout),
-                   descriptorPool(createDescriptorPool()) {
+                                    resources.getFrameLayout(), resources.getMaterialLayout(),
+                                    resources.getObjectLayout()) {
     createImageResources();
     createFrameResources();
 }
 
 void Engine::createScene() {
-    meshes.emplace_back(device, Shape::Plane);
-    meshes.emplace_back(device, Shape::Cube);
-    objects.emplace_back(device, descriptorPool, objectDescriptorSetLayout, Transform{}, meshes.at(0), 0);
-    Transform cubeTransform{{0.0f, 0.0f, 0.5f}, {0.0f, 0.0f, 0.0f}, {0.5f, 0.5f, 0.5f}};
-    objects.emplace_back(device, descriptorPool, objectDescriptorSetLayout, cubeTransform, meshes.at(1), 1);
+    resources.loadMesh("plane", Shape::plane());
+    resources.loadMesh("cube", Shape::cube());
+    resources.loadMesh("viking_room.glb");
+
+    resources.loadTexture("viking_room.ktx2");
+    resources.loadTexture("statue.ktx2");
+
+    // viking room
+    objects.emplace_back(device, resources.getPool(), resources.getObjectLayout(), Transform{},
+                         resources.getMesh("viking_room"), resources.getTexture("viking_room"));
+
+    // cube
+    Transform cubeTransform{{-2.0f, 0.0f, 0.5f}, {0.0f, 0.0f, 0.0f}, {0.5f, 0.5f, 0.5f}};
+    objects.emplace_back(device, resources.getPool(), resources.getObjectLayout(), cubeTransform,
+                         resources.getMesh("cube"),
+                         resources.getTexture("statue"));
 }
 
 void Engine::run() {
@@ -141,54 +152,11 @@ void Engine::createImageResources() {
 
 void Engine::createFrameResources() {
     assert(frameResources.empty());
-
     frameResources.reserve(Config::MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < Config::MAX_FRAMES_IN_FLIGHT; ++i) {
-        frameResources.emplace_back(device, descriptorPool, frameDescriptorSetLayout, swapChain.getTextureImages());
+        frameResources.emplace_back(device, resources.getPool(), resources.getFrameLayout(), resources.getTextureSampler());
     }
-}
-
-vk::raii::DescriptorPool Engine::createDescriptorPool() {
-    std::array poolSize{
-        vk::DescriptorPoolSize{
-            .type = vk::DescriptorType::eUniformBuffer,
-            .descriptorCount = Config::MAX_FRAMES_IN_FLIGHT * Config::MAX_OBJECTS
-        },
-        vk::DescriptorPoolSize{
-            .type = vk::DescriptorType::eCombinedImageSampler,
-            .descriptorCount = Config::MAX_FRAMES_IN_FLIGHT * Config::MAX_TEXTURES
-        }
-    };
-
-    vk::DescriptorPoolCreateInfo createInfo{
-        .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-        .maxSets = Config::MAX_FRAMES_IN_FLIGHT * (Config::MAX_OBJECTS + Config::MAX_TEXTURES),
-        .poolSizeCount = static_cast<uint32_t>(poolSize.size()),
-        .pPoolSizes = poolSize.data()
-    };
-
-    return {device.getDevice(), createInfo};
-}
-
-vk::raii::DescriptorSetLayout Engine::createDescriptorSetLayout() {
-    std::array bindings{
-        vk::DescriptorSetLayoutBinding{
-            .binding = 0,
-            .descriptorType = vk::DescriptorType::eUniformBuffer,
-            .descriptorCount = 1,
-            .stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment
-        },
-        vk::DescriptorSetLayoutBinding{
-            .binding = 1,
-            .descriptorType = vk::DescriptorType::eCombinedImageSampler,
-            .descriptorCount = static_cast<uint32_t>(swapChain.getTextureImages().size()),
-            .stageFlags = vk::ShaderStageFlagBits::eFragment
-        },
-    };
-    vk::DescriptorSetLayoutCreateInfo frameLayoutInfo{.bindingCount = bindings.size(), .pBindings = bindings.data()};
-
-    return {device.getDevice(), frameLayoutInfo};
 }
 
 void Engine::update() {
@@ -196,7 +164,7 @@ void Engine::update() {
     float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
     lastTime = currentTime;
 
-    objects.at(0).getTransform().rotate(glm::vec3(0.0f, 0.0f, 90.0f) * deltaTime);
+    objects.at(0).getTransform().rotate(glm::vec3(0.0f, 45.0f, 0.0f) * deltaTime);
     objects.at(1).getTransform().rotate(glm::vec3(-40.0f, 30.0f, -20.0f) * deltaTime);
 }
 
@@ -216,7 +184,7 @@ void Engine::drawFrame() {
     }
 
     FrameData frameData{
-        .view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+        .view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
         .proj = glm::perspective(glm::radians(45.0f),
                                  static_cast<float>(swapChain.getExtent().width) /
                                  static_cast<float>(swapChain.getExtent().height),

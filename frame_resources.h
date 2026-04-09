@@ -23,7 +23,7 @@ struct FrameData {
 class FrameResources {
 public:
     FrameResources(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
-                   vk::DescriptorSetLayout descriptorSetLayout, const std::vector<ImageResource>& textureImages);
+                   vk::DescriptorSetLayout descriptorSetLayout, vk::Sampler textureSampler);
 
     const vk::raii::CommandBuffer& getCommandBuffer() const { return commandBuffer; }
     const vk::raii::Semaphore& getPresentCompleteSemaphore() const { return presentCompleteSemaphore; }

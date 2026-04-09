@@ -33,7 +33,7 @@ namespace {
 }
 
 GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, vk::Format colorFormat, vk::Format depthFormat,
-                                   vk::DescriptorSetLayout frameLayout, vk::DescriptorSetLayout objectLayout) {
+                                   vk::DescriptorSetLayout frameLayout, vk::DescriptorSetLayout textureLayout, vk::DescriptorSetLayout objectLayout) {
     vk::raii::ShaderModule shaderModule = createShaderModule(device.getDevice(), readFile("shaders/slang.spv"));
 
     vk::PipelineShaderStageCreateInfo vertShaderCreateInfo{
@@ -108,7 +108,7 @@ GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, vk::Format colorF
         .stencilTestEnable = vk::False
     };
 
-    std::array layouts = {frameLayout, objectLayout};
+    std::array layouts = {frameLayout, textureLayout, objectLayout};
     vk::PipelineLayoutCreateInfo layoutCreateInfo{
         .setLayoutCount = static_cast<uint32_t>(layouts.size()),
         .pSetLayouts = layouts.data()
