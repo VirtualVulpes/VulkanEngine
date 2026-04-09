@@ -258,13 +258,13 @@ vk::raii::DescriptorPool ResourceManager::createDescriptorPool() {
         },
         vk::DescriptorPoolSize{
             .type = vk::DescriptorType::eSampler,
-            .descriptorCount = Config::MAX_SAMPLERS
+            .descriptorCount = Config::MAX_TEXTURES
         }
     };
 
     vk::DescriptorPoolCreateInfo info{
         .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-        .maxSets = Config::MAX_FRAMES_IN_FLIGHT + Config::MAX_OBJECTS + Config::MAX_TEXTURES + Config::MAX_SAMPLERS,
+        .maxSets = Config::MAX_FRAMES_IN_FLIGHT + Config::MAX_OBJECTS + Config::MAX_TEXTURES,
         .poolSizeCount = poolSizes.size(),
         .pPoolSizes = poolSizes.data()
     };
