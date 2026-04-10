@@ -115,6 +115,8 @@ add_executable (${TEMPLATE_NAME} main.cpp
         scene.h
         camera.cpp
         camera.h
+        input_manager.cpp
+        input_manager.h
 )
 
 set_target_properties (${TEMPLATE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEMPLATE_DIR})

@@ -30,7 +30,9 @@ private:
 
     void populateScene();
 
-    void update();
+    void update(float deltaTime);
+
+    float calculateDeltaTime();
 
     void drawFrame();
 

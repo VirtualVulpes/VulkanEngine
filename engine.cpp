@@ -56,7 +56,7 @@ namespace {
 Engine::Engine() : glfwManager_(),
                    instance_(createInstance()),
                    debugMessenger_(createDebugMessenger()),
-                   window_(Config::WIDTH, Config::HEIGHT, "Vulkan Engine", instance_),
+                   window_({100, 100}, {Config::WIDTH, Config::HEIGHT}, "Vulkan Engine", instance_),
                    device_(instance_, window_.getSurface()),
                    swapChain_(window_.getSurface(), window_.getFramebufferSize(), device_),
                    resources_(device_),
@@ -88,10 +88,15 @@ void Engine::loadAssets() {
 }
 
 void Engine::populateScene() {
-    scene_.createObject(Transform{}, "viking_room", "viking_room");
+    Transform roomTransform{{-3.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+    scene_.createObject(roomTransform, "viking_room", "viking_room");
 
-    Transform cubeTransform{{-2.0f, 0.0f, 0.5f}, {0.0f, 0.0f, 0.0f}, {0.5f, 0.5f, 0.5f}};
+    Transform cubeTransform{{0.8f, 0.8f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
     scene_.createObject(cubeTransform, "cube", "dirt");
+
+    Transform planeTransform{{0.0f, 0.0f, 0.0f}, {-90.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+    scene_.createObject(planeTransform, "plane", "dirt");
+
 }
 
 void Engine::run() {
@@ -100,8 +105,8 @@ void Engine::run() {
 
     lastTime_ = std::chrono::steady_clock::now();
     while (!window_.shouldClose()) {
-        window_.pollEvents();
-        update();
+        window_.update();
+        update(calculateDeltaTime());
         drawFrame();
     }
 
@@ -168,20 +173,30 @@ void Engine::createFrameResources() {
     }
 }
 
-void Engine::update() {
-    auto currentTime = std::chrono::steady_clock::now();
-    float deltaTime = std::chrono::duration<float>(currentTime - lastTime_).count();
-    lastTime_ = currentTime;
-
+void Engine::update(float deltaTime) {
     for (auto& [id, object] : scene_.getObjects()) {
-        if (id == 0) {
-            object.getTransform().rotate(glm::vec3(0.0f, 45.0f, 0.0f) * deltaTime);
-        }
-
         if (id == 1) {
             object.getTransform().rotate(glm::vec3(-40.0f, 30.0f, -20.0f) * deltaTime);
         }
     }
+
+    if (window_.getInputManager().isKeyJustPressed(Key::ESCAPE)) {
+        window_.close();
+    }
+
+    if (window_.getInputManager().isKeyJustPressed(Key::F11)) {
+        window_.toggleFullscreen();
+    }
+
+    scene_.getActiveCamera().update(deltaTime, window_.getInputManager());
+}
+
+float Engine::calculateDeltaTime() {
+    auto currentTime = std::chrono::steady_clock::now();
+    float deltaTime = std::chrono::duration<float>(currentTime - lastTime_).count();
+    lastTime_ = currentTime;
+
+    return deltaTime;
 }
 
 void Engine::drawFrame() {
