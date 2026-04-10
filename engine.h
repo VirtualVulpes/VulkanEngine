@@ -28,27 +28,27 @@ private:
 
     void loadAssets();
 
-    void createScene();
+    void populateScene();
 
     void update();
 
     void drawFrame();
 
-    GLFWManager glfwManager;
-    vk::raii::Context context;
-    vk::raii::Instance instance{nullptr};
-    vk::raii::DebugUtilsMessengerEXT debugMessenger{nullptr};
-    Window window;
-    VulkanDevice device;
-    SwapChain swapChain;
-    ResourceManager resources;
-    GraphicsPipeline graphicsPipeline;
+    GLFWManager glfwManager_;
+    vk::raii::Context context_;
+    vk::raii::Instance instance_{nullptr};
+    vk::raii::DebugUtilsMessengerEXT debugMessenger_{nullptr};
+    Window window_;
+    VulkanDevice device_;
+    SwapChain swapChain_;
+    ResourceManager resources_;
+    GraphicsPipeline graphicsPipeline_;
 
-    std::vector<FrameResources> frameResources;
-    std::vector<vk::raii::Semaphore> renderFinishedSemaphores; // outside of frame resources, not one per frame
-    uint32_t frameIndex{0};
+    std::vector<FrameResources> frameResources_;
+    std::vector<vk::raii::Semaphore> renderFinishedSemaphores_; // outside of frame resources, not one per frame
+    uint32_t frameIndex_{0};
 
-    Scene scene{};
+    Scene scene_;
 
-    std::chrono::steady_clock::time_point lastTime;
+    std::chrono::steady_clock::time_point lastTime_;
 };

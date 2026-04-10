@@ -5,8 +5,8 @@
 #include "assets.h"
 #include "vulkan_device.h"
 
-Texture::Texture(const VulkanDevice& device, const Assets::TextureData& data, const ImageConfig& config, vk::raii::DescriptorSet descriptorSet) : descriptor(std::move(descriptorSet)) {
-    image = Image::createResource(device, data.width, data.height, data.mipLevels, config, data.format);
+Texture::Texture(const VulkanDevice& device, const Assets::TextureData& data, const ImageConfig& config, vk::raii::DescriptorSet descriptorSet) : descriptor_(std::move(descriptorSet)) {
+    image_ = Image::createResource(device, data.width, data.height, data.mipLevels, config, data.format);
 
     auto commandBuffer = device.beginSingleTimeCommands();
 
@@ -17,7 +17,7 @@ Texture::Texture(const VulkanDevice& device, const Assets::TextureData& data, co
     buffer.copyData(data.pixels.size(), data.pixels.data());
 
     // copy data from staging buffer to texture image
-    Image::transitionLayout(image.image,
+    Image::transitionLayout(image_.image,
                             vk::ImageLayout::eUndefined,
                             vk::ImageLayout::eTransferDstOptimal,
                             {},
@@ -31,12 +31,12 @@ Texture::Texture(const VulkanDevice& device, const Assets::TextureData& data, co
     uint32_t mipWidth = data.width;
     uint32_t mipHeight = data.height;
     for (uint32_t i = 0; i < data.mipLevels; i++) {
-        Image::copyBufferToImage(commandBuffer, buffer.buffer, image.image, mipWidth, mipHeight, data.mipOffsets[i], i);
+        Image::copyBufferToImage(commandBuffer, buffer.buffer, image_.image, mipWidth, mipHeight, data.mipOffsets[i], i);
         mipWidth = std::max(1u, mipWidth >> 1);
         mipHeight = std::max(1u, mipHeight >> 1);
     }
 
-    Image::transitionLayout(image.image,
+    Image::transitionLayout(image_.image,
                             vk::ImageLayout::eTransferDstOptimal,
                             vk::ImageLayout::eShaderReadOnlyOptimal,
                             vk::AccessFlagBits2::eTransferWrite,
@@ -50,12 +50,12 @@ Texture::Texture(const VulkanDevice& device, const Assets::TextureData& data, co
     device.endSingleTimeCommands(commandBuffer);
 
     vk::DescriptorImageInfo imageInfo{
-        .imageView   = *image.view,
+        .imageView   = *image_.view,
         .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal
     };
 
     vk::WriteDescriptorSet write{
-        .dstSet          = *descriptor,
+        .dstSet          = *descriptor_,
         .dstBinding      = 0,
         .descriptorCount = 1,
         .descriptorType  = vk::DescriptorType::eSampledImage,

@@ -72,7 +72,7 @@ namespace {
 
 SwapChain::SwapChain(vk::SurfaceKHR surface, vk::Extent2D framebufferSize, const VulkanDevice& device) {
     std::vector<vk::SurfaceFormatKHR> formats = device.getPhysicalDevice().getSurfaceFormatsKHR(surface);
-    surfaceFormat = chooseSurfaceFormat(formats);
+    surfaceFormat_ = chooseSurfaceFormat(formats);
 
     createSwapChain(surface, framebufferSize, device);
     createColorResources(device);
@@ -82,7 +82,7 @@ SwapChain::SwapChain(vk::SurfaceKHR surface, vk::Extent2D framebufferSize, const
 void SwapChain::createSwapChain(vk::SurfaceKHR surface, vk::Extent2D framebufferSize, const VulkanDevice& device) {
     vk::SurfaceCapabilitiesKHR surfaceCapabilities = device.getPhysicalDevice().getSurfaceCapabilitiesKHR(
         surface);
-    extent = chooseExtent(framebufferSize, surfaceCapabilities);
+    extent_ = chooseExtent(framebufferSize, surfaceCapabilities);
 
     std::vector<vk::PresentModeKHR> availablePresentModes =
             device.getPhysicalDevice().getSurfacePresentModesKHR(surface);
@@ -90,9 +90,9 @@ void SwapChain::createSwapChain(vk::SurfaceKHR surface, vk::Extent2D framebuffer
     vk::SwapchainCreateInfoKHR createInfo{
         .surface = surface,
         .minImageCount = chooseMinImageCount(surfaceCapabilities),
-        .imageFormat = surfaceFormat.format,
-        .imageColorSpace = surfaceFormat.colorSpace,
-        .imageExtent = extent,
+        .imageFormat = surfaceFormat_.format,
+        .imageColorSpace = surfaceFormat_.colorSpace,
+        .imageExtent = extent_,
         .imageArrayLayers = 1,
         .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
         .imageSharingMode = vk::SharingMode::eExclusive,
@@ -102,14 +102,14 @@ void SwapChain::createSwapChain(vk::SurfaceKHR surface, vk::Extent2D framebuffer
         .clipped = true
     };
 
-    swapChain = vk::raii::SwapchainKHR(device.getDevice(), createInfo);
+    swapChain_ = vk::raii::SwapchainKHR(device.getDevice(), createInfo);
 
-    std::vector<vk::Image> rawImages = swapChain.getImages();
-    images.reserve(rawImages.size());
+    std::vector<vk::Image> rawImages = swapChain_.getImages();
+    images_.reserve(rawImages.size());
     for (const auto& image : rawImages) {
-        images.push_back({
+        images_.push_back({
             .image = image,
-            .view = Image::createView(device, image, surfaceFormat.format, vk::ImageAspectFlagBits::eColor)
+            .view = Image::createView(device, image, surfaceFormat_.format, vk::ImageAspectFlagBits::eColor)
         });
     }
 }
@@ -122,11 +122,11 @@ void SwapChain::createColorResources(const VulkanDevice& device) {
         .aspect = vk::ImageAspectFlagBits::eColor
     };
 
-    colorImage = Image::createResource(device, extent.width, extent.height, 1, config, surfaceFormat.format, device.getMsaaSamples());
+    colorImage_ = Image::createResource(device, extent_.width, extent_.height, 1, config, surfaceFormat_.format, device.getMsaaSamples());
 }
 
 void SwapChain::createDepthResources(const VulkanDevice& device) {
-    depthFormat = findDepthFormat(device.getPhysicalDevice());
+    depthFormat_ = findDepthFormat(device.getPhysicalDevice());
 
     ImageConfig config {
         .tiling = vk::ImageTiling::eOptimal,
@@ -135,7 +135,7 @@ void SwapChain::createDepthResources(const VulkanDevice& device) {
         .aspect = vk::ImageAspectFlagBits::eDepth
     };
 
-    depthImage = Image::createResource(device, extent.width, extent.height, 1, config, depthFormat, device.getMsaaSamples());
+    depthImage_ = Image::createResource(device, extent_.width, extent_.height, 1, config, depthFormat_, device.getMsaaSamples());
 }
 
 void SwapChain::recreate(const Window& window, const VulkanDevice& device) {
@@ -147,8 +147,8 @@ void SwapChain::recreate(const Window& window, const VulkanDevice& device) {
 
     device.getDevice().waitIdle();
 
-    images.clear();
-    swapChain = nullptr;
+    images_.clear();
+    swapChain_ = nullptr;
 
     createSwapChain(window.getSurface(), window.getFramebufferSize(), device);
     createColorResources(device);

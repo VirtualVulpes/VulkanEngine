@@ -12,12 +12,12 @@ FrameResources::FrameResources(const VulkanDevice& device, vk::DescriptorPool de
         .level = vk::CommandBufferLevel::ePrimary,
         .commandBufferCount = 1
     };
-    commandBuffer = std::move(vk::raii::CommandBuffers(device.getDevice(), allocateInfo).front());
+    commandBuffer_ = std::move(vk::raii::CommandBuffers(device.getDevice(), allocateInfo).front());
 
-    presentCompleteSemaphore = vk::raii::Semaphore(device.getDevice(), vk::SemaphoreCreateInfo());
-    inFlightFence = vk::raii::Fence(device.getDevice(), {.flags = vk::FenceCreateFlagBits::eSignaled});
+    presentCompleteSemaphore_ = vk::raii::Semaphore(device.getDevice(), vk::SemaphoreCreateInfo());
+    inFlightFence_ = vk::raii::Fence(device.getDevice(), {.flags = vk::FenceCreateFlagBits::eSignaled});
 
-    uniformBuffer = Buffer::createAllocation(sizeof(FrameData),
+    uniformBuffer_ = Buffer::createAllocation(sizeof(FrameData),
                                              vk::BufferUsageFlagBits::eUniformBuffer,
                                              vk::MemoryPropertyFlagBits::eHostVisible |
                                              vk::MemoryPropertyFlagBits::eHostCoherent,
@@ -28,17 +28,17 @@ FrameResources::FrameResources(const VulkanDevice& device, vk::DescriptorPool de
         .descriptorSetCount = 1,
         .pSetLayouts = &descriptorSetLayout
     };
-    descriptorSet = std::move(device.getDevice().allocateDescriptorSets(allocInfo).front());
+    descriptorSet_ = std::move(device.getDevice().allocateDescriptorSets(allocInfo).front());
 
 
     vk::DescriptorBufferInfo bufferInfo{
-        .buffer = *uniformBuffer.buffer,
+        .buffer = *uniformBuffer_.buffer,
         .offset = 0,
         .range = sizeof(FrameData)
     };
 
     vk::WriteDescriptorSet write {
-        .dstSet = descriptorSet,
+        .dstSet = descriptorSet_,
         .dstBinding = 0,
         .dstArrayElement = 0,
         .descriptorCount = 1,
@@ -50,11 +50,11 @@ FrameResources::FrameResources(const VulkanDevice& device, vk::DescriptorPool de
 }
 
 void FrameResources::beginFrame(const vk::raii::Device& device) {
-    auto fenceResult = device.waitForFences(*inFlightFence, vk::True, UINT64_MAX);
+    auto fenceResult = device.waitForFences(*inFlightFence_, vk::True, UINT64_MAX);
     if (fenceResult != vk::Result::eSuccess) {
         throw std::runtime_error("failed to wait for fence");
     }
-    commandBuffer.reset();
+    commandBuffer_.reset();
 }
 
 void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
@@ -62,7 +62,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
                                          vk::DescriptorSet frameDescriptorSet, RenderTarget renderTarget,
                                          uint32_t frameIndex,
                                          std::span<const Object* const> objects) const {
-    commandBuffer.begin({});
+    commandBuffer_.begin({});
 
     Image::transitionLayout(
         renderTarget.swapChainImage,
@@ -73,7 +73,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         vk::PipelineStageFlagBits2::eColorAttachmentOutput,
         vk::PipelineStageFlagBits2::eColorAttachmentOutput,
         vk::ImageAspectFlagBits::eColor,
-        commandBuffer
+        commandBuffer_
     );
     Image::transitionLayout(
         renderTarget.colorImage,
@@ -84,7 +84,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         vk::PipelineStageFlagBits2::eColorAttachmentOutput,
         vk::PipelineStageFlagBits2::eColorAttachmentOutput,
         vk::ImageAspectFlagBits::eColor,
-        commandBuffer
+        commandBuffer_
     );
     Image::transitionLayout(
         renderTarget.depthImage,
@@ -95,7 +95,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
         vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
         vk::ImageAspectFlagBits::eDepth,
-        commandBuffer
+        commandBuffer_
     );
 
     vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
@@ -125,14 +125,14 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         .pDepthAttachment = &depthAttachmentInfo
     };
 
-    commandBuffer.beginRendering(renderingInfo);
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
-    commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(renderTarget.extent.width),
+    commandBuffer_.beginRendering(renderingInfo);
+    commandBuffer_.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+    commandBuffer_.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(renderTarget.extent.width),
                                               static_cast<float>(renderTarget.extent.height), 0.0f, 1.0f));
-    commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), renderTarget.extent));
+    commandBuffer_.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), renderTarget.extent));
 
     // bind frame data
-    commandBuffer.bindDescriptorSets(
+    commandBuffer_.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         pipelineLayout,
         0,
@@ -148,7 +148,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         // bind texture
         vk::DescriptorSet textureDescriptor = object->getTexture().getDescriptorSet();
         if (textureDescriptor != currentTexture) {
-            commandBuffer.bindDescriptorSets(
+            commandBuffer_.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics,
                 pipelineLayout,
                 1,
@@ -161,29 +161,29 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         // bind vertex buffer
         vk::Buffer vertexBuffer = *object->getMesh().getVertexBuffer().buffer;
         if (vertexBuffer != currentVertexBuffer) {
-            commandBuffer.bindVertexBuffers(0, vertexBuffer, {0});
+            commandBuffer_.bindVertexBuffers(0, vertexBuffer, {0});
             currentVertexBuffer = vertexBuffer;
         }
 
         // bind index buffer
         vk::Buffer indexBuffer = *object->getMesh().getIndexBuffer().buffer;
         if (indexBuffer != currentIndexBuffer) {
-            commandBuffer.bindIndexBuffer(indexBuffer, 0, object->getMesh().getIndexType());
+            commandBuffer_.bindIndexBuffer(indexBuffer, 0, object->getMesh().getIndexType());
             currentIndexBuffer = indexBuffer;
         }
 
         // bind object-specific data
-        commandBuffer.bindDescriptorSets(
+        commandBuffer_.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             pipelineLayout,
             2,
             {object->getDescriptorSet(frameIndex)},
             {}
         );
-        commandBuffer.drawIndexed(object->getMesh().getIndexAmount(), 1, 0, 0, 0);
+        commandBuffer_.drawIndexed(object->getMesh().getIndexAmount(), 1, 0, 0, 0);
     }
 
-    commandBuffer.endRendering();
+    commandBuffer_.endRendering();
 
     Image::transitionLayout(
         renderTarget.swapChainImage,
@@ -194,13 +194,13 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         vk::PipelineStageFlagBits2::eColorAttachmentOutput,
         vk::PipelineStageFlagBits2::eBottomOfPipe,
         vk::ImageAspectFlagBits::eColor,
-        commandBuffer
+        commandBuffer_
     );
-    commandBuffer.end();
+    commandBuffer_.end();
 }
 
 void FrameResources::updateFrameData(const FrameData& data) const {
-    void* mapped = uniformBuffer.memory.mapMemory(0, sizeof(FrameData));
+    void* mapped = uniformBuffer_.memory.mapMemory(0, sizeof(FrameData));
     memcpy(mapped, &data, sizeof(FrameData));
-    uniformBuffer.memory.unmapMemory();
+    uniformBuffer_.memory.unmapMemory();
 }

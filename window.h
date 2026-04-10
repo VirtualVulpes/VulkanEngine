@@ -8,20 +8,20 @@ class Window
 {
 public:
     Window(uint32_t width, uint32_t height, std::string_view title, const vk::raii::Instance& instance);
-    const vk::raii::SurfaceKHR& getSurface() const { return surface; }
+    const vk::raii::SurfaceKHR& getSurface() const { return surface_; }
     vk::Extent2D getFramebufferSize() const;
     bool shouldClose() const;
 
-    bool needsResize() const { return resizePending; }
-    void onResize() { resizePending = true; }
-    void clearResize() { resizePending = false; }
+    bool needsResize() const { return resizePending_; }
+    void onResize() { resizePending_ = true; }
+    void clearResize() { resizePending_ = false; }
 
     void pollEvents() const;
     void waitEvents() const;
     ~Window();
 
 private:
-    GLFWwindow* window{nullptr};
-    vk::raii::SurfaceKHR surface{nullptr};
-    bool resizePending{false};
+    GLFWwindow* window_{nullptr};
+    vk::raii::SurfaceKHR surface_{nullptr};
+    bool resizePending_{false};
 };

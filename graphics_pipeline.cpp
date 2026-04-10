@@ -113,7 +113,7 @@ GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, vk::Format colorF
         .setLayoutCount = static_cast<uint32_t>(layouts.size()),
         .pSetLayouts = layouts.data()
     };
-    layout = vk::raii::PipelineLayout(device.getDevice(), layoutCreateInfo);
+    layout_ = vk::raii::PipelineLayout(device.getDevice(), layoutCreateInfo);
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> createInfo = {
         {
@@ -127,10 +127,10 @@ GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, vk::Format colorF
             .pDepthStencilState = &depthStencil,
             .pColorBlendState = &colorBlendingCreateInfo,
             .pDynamicState = &dynamicStateCreateInfo,
-            .layout = *layout,
+            .layout = *layout_,
         },
         {.colorAttachmentCount = 1, .pColorAttachmentFormats = &colorFormat, .depthAttachmentFormat = depthFormat}
     };
 
-    pipeline = vk::raii::Pipeline(device.getDevice(), nullptr, createInfo.get<vk::GraphicsPipelineCreateInfo>());
+    pipeline_ = vk::raii::Pipeline(device.getDevice(), nullptr, createInfo.get<vk::GraphicsPipelineCreateInfo>());
 }

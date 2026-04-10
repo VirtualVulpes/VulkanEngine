@@ -9,8 +9,8 @@ namespace Assets {
 class Texture {
 public:
     Texture(const VulkanDevice& device, const Assets::TextureData& data, const ImageConfig& config, vk::raii::DescriptorSet descriptorSet);
-    vk::DescriptorSet getDescriptorSet() const { return descriptor; }
+    vk::DescriptorSet getDescriptorSet() const { return descriptor_; }
 private:
-    ImageResource image;
-    vk::raii::DescriptorSet descriptor;
+    ImageResource image_;
+    vk::raii::DescriptorSet descriptor_;
 };

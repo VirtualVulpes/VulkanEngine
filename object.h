@@ -8,25 +8,25 @@ class Texture;
 
 class Object {
 public:
-    Object(const VulkanDevice& device, vk::DescriptorPool descriptorPool, vk::DescriptorSetLayout descriptorSetLayout,
-           const Transform& transform, Mesh& mesh, Texture& texture);
+    Object(const VulkanDevice& device, const Transform& transform, Mesh& mesh, Texture& texture,
+           std::vector<vk::raii::DescriptorSet> descriptorSets);
 
-    const Transform& getTransform() const { return transform; }
-    Transform& getTransform() { return transform; }
-    const vk::raii::DescriptorSet& getDescriptorSet(uint32_t frameIndex) const { return descriptorSets[frameIndex]; }
-    Mesh& getMesh() { return mesh; }
-    const Mesh& getMesh() const { return mesh; }
-    Texture& getTexture() { return texture; }
-    const Texture& getTexture() const { return texture; }
+    const Transform& getTransform() const { return transform_; }
+    Transform& getTransform() { return transform_; }
+    const vk::raii::DescriptorSet& getDescriptorSet(uint32_t frameIndex) const { return descriptorSets_[frameIndex]; }
+    Mesh& getMesh() { return mesh_; }
+    const Mesh& getMesh() const { return mesh_; }
+    Texture& getTexture() { return texture_; }
+    const Texture& getTexture() const { return texture_; }
 
     void updateTransform() const;
 
 private:
-    Transform transform{};
-    Mesh& mesh;
-    Texture& texture;
+    Transform transform_{};
+    Mesh& mesh_;
+    Texture& texture_;
 
-    std::array<MappedBuffer, Config::MAX_FRAMES_IN_FLIGHT> objectBuffers;
-    std::vector<vk::raii::DescriptorSet> descriptorSets;
-    void* mappedPtr{nullptr};
+    std::array<MappedBuffer, Config::MAX_FRAMES_IN_FLIGHT> objectBuffers_;
+    std::vector<vk::raii::DescriptorSet> descriptorSets_;
+    void* mappedPtr_{nullptr};
 };

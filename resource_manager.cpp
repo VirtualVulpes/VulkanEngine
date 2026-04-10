@@ -56,15 +56,15 @@ namespace {
     }
 }
 
-ResourceManager::ResourceManager(const VulkanDevice& device) : device(device),
-                                                               frameLayout(createFrameLayout()),
-                                                               materialLayout(createMaterialLayout()),
-                                                               objectLayout(createObjectLayout()),
-                                                               descriptorPool(createDescriptorPool()) {
+ResourceManager::ResourceManager(const VulkanDevice& device) : device_(device),
+                                                               descriptorPool_(createDescriptorPool()),
+                                                               frameLayout_(createFrameLayout()),
+                                                               materialLayout_(createMaterialLayout()),
+                                                               objectLayout_(createObjectLayout()) {
 }
 
 Mesh& ResourceManager::loadMesh(std::string_view name, const Assets::MeshData& data) {
-    auto [it, inserted] = meshes.try_emplace(std::string{name}, device, data);
+    auto [it, inserted] = meshes_.try_emplace(std::string{name}, device_, data);
     return it->second;
 }
 
@@ -149,13 +149,13 @@ Mesh& ResourceManager::loadMesh(std::string_view name) {
         }
     }
 
-    auto [it, inserted] = meshes.try_emplace(path.stem().string(), device, data);
+    auto [it, inserted] = meshes_.try_emplace(path.stem().string(), device_, data);
 
     return it->second;
 }
 
 Texture& ResourceManager::loadTexture(std::string_view name, const Assets::SamplerConfig& samplerConfig) {
-    if (auto it = textures.find(std::string{name}); it != textures.end())
+    if (auto it = textures_.find(std::string{name}); it != textures_.end())
         return it->second;
 
     std::filesystem::path path = Config::texturePath / name;
@@ -169,12 +169,13 @@ Texture& ResourceManager::loadTexture(std::string_view name, const Assets::Sampl
     };
 
     vk::DescriptorSetAllocateInfo allocInfo{
-        .descriptorPool = *descriptorPool,
+        .descriptorPool = *descriptorPool_,
         .descriptorSetCount = 1,
-        .pSetLayouts = &*materialLayout
+        .pSetLayouts = &*materialLayout_
     };
-    auto [it, inserted] = textures.try_emplace(path.stem().string(), device, data, config,
-                                               std::move(device.getDevice().allocateDescriptorSets(allocInfo).front()));
+    auto [it, inserted] = textures_.try_emplace(path.stem().string(), device_, data, config,
+                                                std::move(
+                                                    device_.getDevice().allocateDescriptorSets(allocInfo).front()));
     Texture& texture = it->second;
 
     // write sampler
@@ -189,7 +190,7 @@ Texture& ResourceManager::loadTexture(std::string_view name, const Assets::Sampl
         .descriptorType = vk::DescriptorType::eSampler,
         .pImageInfo = &samplerInfo
     };
-    device.getDevice().updateDescriptorSets(samplerWrite, nullptr);
+    device_.getDevice().updateDescriptorSets(samplerWrite, nullptr);
 
     return texture;
 }
@@ -205,7 +206,7 @@ vk::raii::DescriptorSetLayout ResourceManager::createFrameLayout() {
         .bindingCount = 1,
         .pBindings = &binding
     };
-    return device.getDevice().createDescriptorSetLayout(layoutInfo);
+    return device_.getDevice().createDescriptorSetLayout(layoutInfo);
 }
 
 vk::raii::DescriptorSetLayout ResourceManager::createMaterialLayout() {
@@ -227,7 +228,7 @@ vk::raii::DescriptorSetLayout ResourceManager::createMaterialLayout() {
         .bindingCount = 2,
         .pBindings = bindings.data()
     };
-    return device.getDevice().createDescriptorSetLayout(layoutInfo);
+    return device_.getDevice().createDescriptorSetLayout(layoutInfo);
 }
 
 vk::raii::DescriptorSetLayout ResourceManager::createObjectLayout() {
@@ -241,7 +242,7 @@ vk::raii::DescriptorSetLayout ResourceManager::createObjectLayout() {
         .bindingCount = 1,
         .pBindings = &binding
     };
-    return device.getDevice().createDescriptorSetLayout(layoutInfo);
+    return device_.getDevice().createDescriptorSetLayout(layoutInfo);
 }
 
 vk::raii::DescriptorPool ResourceManager::createDescriptorPool() {
@@ -267,16 +268,16 @@ vk::raii::DescriptorPool ResourceManager::createDescriptorPool() {
         .pPoolSizes = poolSizes.data()
     };
 
-    return device.getDevice().createDescriptorPool(info);
+    return device_.getDevice().createDescriptorPool(info);
 }
 
 vk::Sampler ResourceManager::getSampler(const Assets::SamplerConfig& config) {
-    auto [it, inserted] = textureSamplers.try_emplace(config, createSampler(config));
+    auto [it, inserted] = textureSamplers_.try_emplace(config, createSampler(config));
     return *it->second;
 }
 
 vk::raii::Sampler ResourceManager::createSampler(Assets::SamplerConfig config) {
-    vk::PhysicalDeviceProperties properties = device.getPhysicalDevice().getProperties();
+    vk::PhysicalDeviceProperties properties = device_.getPhysicalDevice().getProperties();
     vk::SamplerCreateInfo createInfo{
         .magFilter = config.filter,
         .minFilter = config.filter,
@@ -292,5 +293,5 @@ vk::raii::Sampler ResourceManager::createSampler(Assets::SamplerConfig config) {
         .minLod = 0.0f,
         .maxLod = vk::LodClampNone,
     };
-    return {device.getDevice(), createInfo};
+    return {device_.getDevice(), createInfo};
 }

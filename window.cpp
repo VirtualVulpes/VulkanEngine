@@ -13,22 +13,22 @@ Window::Window(uint32_t width, uint32_t height, std::string_view title, const vk
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    window = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.data(), nullptr, nullptr);
-    glfwSetWindowUserPointer(window, this);
-    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+    window_ = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.data(), nullptr, nullptr);
+    glfwSetWindowUserPointer(window_, this);
+    glfwSetFramebufferSizeCallback(window_, framebufferResizeCallback);
 
     VkSurfaceKHR rawSurface;
-    if (glfwCreateWindowSurface(*instance, window, nullptr, &rawSurface) != VK_SUCCESS)
+    if (glfwCreateWindowSurface(*instance, window_, nullptr, &rawSurface) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create window surface");
     }
-    surface = vk::raii::SurfaceKHR(instance, rawSurface);
+    surface_ = vk::raii::SurfaceKHR(instance, rawSurface);
 }
 
 vk::Extent2D Window::getFramebufferSize() const
 {
     int rawWidth, rawHeight;
-    glfwGetFramebufferSize(window, &rawWidth, &rawHeight);
+    glfwGetFramebufferSize(window_, &rawWidth, &rawHeight);
     return {static_cast<uint32_t>(rawWidth), static_cast<uint32_t>(rawHeight)};
 }
 
@@ -44,10 +44,10 @@ void Window::waitEvents() const
 
 bool Window::shouldClose() const
 {
-    return glfwWindowShouldClose(window);
+    return glfwWindowShouldClose(window_);
 }
 
 Window::~Window()
 {
-    glfwDestroyWindow(window);
+    glfwDestroyWindow(window_);
 }

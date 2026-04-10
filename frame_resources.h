@@ -25,10 +25,10 @@ public:
     FrameResources(const VulkanDevice& device, vk::DescriptorPool descriptorPool,
                    vk::DescriptorSetLayout descriptorSetLayout);
 
-    const vk::raii::CommandBuffer& getCommandBuffer() const { return commandBuffer; }
-    const vk::raii::Semaphore& getPresentCompleteSemaphore() const { return presentCompleteSemaphore; }
-    const vk::raii::Fence& getInFlightFence() const { return inFlightFence; }
-    const vk::raii::DescriptorSet& getDescriptorSet() const { return descriptorSet; }
+    const vk::raii::CommandBuffer& getCommandBuffer() const { return commandBuffer_; }
+    const vk::raii::Semaphore& getPresentCompleteSemaphore() const { return presentCompleteSemaphore_; }
+    const vk::raii::Fence& getInFlightFence() const { return inFlightFence_; }
+    const vk::raii::DescriptorSet& getDescriptorSet() const { return descriptorSet_; }
 
     void beginFrame(const vk::raii::Device& device);
 
@@ -39,15 +39,15 @@ public:
                              uint32_t frameIndex,
                              std::span<const Object* const> objects) const;
 
-    void resetCommandBuffer() { commandBuffer.reset(); }
+    void resetCommandBuffer() { commandBuffer_.reset(); }
 
     void updateFrameData(const FrameData& data) const;
 
 private:
-    vk::raii::CommandBuffer commandBuffer{nullptr};
-    vk::raii::Semaphore presentCompleteSemaphore{nullptr};
-    vk::raii::Fence inFlightFence{nullptr};
-    BufferAllocation uniformBuffer;
+    vk::raii::CommandBuffer commandBuffer_{nullptr};
+    vk::raii::Semaphore presentCompleteSemaphore_{nullptr};
+    vk::raii::Fence inFlightFence_{nullptr};
+    BufferAllocation uniformBuffer_;
 
-    vk::raii::DescriptorSet descriptorSet{nullptr};
+    vk::raii::DescriptorSet descriptorSet_{nullptr};
 };

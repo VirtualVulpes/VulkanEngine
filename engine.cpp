@@ -53,16 +53,17 @@ namespace {
     }
 }
 
-Engine::Engine() : glfwManager(),
-                   instance(createInstance()),
-                   debugMessenger(createDebugMessenger()),
-                   window(Config::WIDTH, Config::HEIGHT, "Vulkan Engine", instance),
-                   device(instance, window.getSurface()),
-                   swapChain(window.getSurface(), window.getFramebufferSize(), device),
-                   resources(device),
-                   graphicsPipeline(device, swapChain.getColorFormat(), swapChain.getDepthFormat(),
-                                    resources.getFrameLayout(), resources.getMaterialLayout(),
-                                    resources.getObjectLayout()) {
+Engine::Engine() : glfwManager_(),
+                   instance_(createInstance()),
+                   debugMessenger_(createDebugMessenger()),
+                   window_(Config::WIDTH, Config::HEIGHT, "Vulkan Engine", instance_),
+                   device_(instance_, window_.getSurface()),
+                   swapChain_(window_.getSurface(), window_.getFramebufferSize(), device_),
+                   resources_(device_),
+                   graphicsPipeline_(device_, swapChain_.getColorFormat(), swapChain_.getDepthFormat(),
+                                    resources_.getFrameLayout(), resources_.getMaterialLayout(),
+                                    resources_.getObjectLayout()),
+                   scene_(device_, resources_) {
     createImageResources();
     createFrameResources();
 }
@@ -70,9 +71,9 @@ Engine::Engine() : glfwManager(),
 void Engine::loadAssets() {
     // --- Meshes ---
 
-    resources.loadMesh("plane", Shape::plane());
-    resources.loadMesh("cube", Shape::cube());
-    resources.loadMesh("viking_room.glb");
+    resources_.loadMesh("plane", Shape::plane());
+    resources_.loadMesh("cube", Shape::cube());
+    resources_.loadMesh("viking_room.glb");
 
     // --- Textures ---
 
@@ -82,35 +83,29 @@ void Engine::loadAssets() {
         .addressMode = vk::SamplerAddressMode::eClampToEdge,
         .anisotropy = false
     };
-    resources.loadTexture("viking_room.ktx2");
-    resources.loadTexture("dirt.ktx2", lowResSampler);
+    resources_.loadTexture("viking_room.ktx2");
+    resources_.loadTexture("dirt.ktx2", lowResSampler);
 }
 
-void Engine::createScene() {
-    scene.addObject({
-        device, resources.getPool(), resources.getObjectLayout(), Transform{},
-        resources.getMesh("viking_room"), resources.getTexture("viking_room")
-    });
+void Engine::populateScene() {
+    scene_.createObject(Transform{}, "viking_room", "viking_room");
 
     Transform cubeTransform{{-2.0f, 0.0f, 0.5f}, {0.0f, 0.0f, 0.0f}, {0.5f, 0.5f, 0.5f}};
-    scene.addObject({
-        device, resources.getPool(), resources.getObjectLayout(), cubeTransform,
-        resources.getMesh("cube"), resources.getTexture("dirt")
-    });
+    scene_.createObject(cubeTransform, "cube", "dirt");
 }
 
 void Engine::run() {
     loadAssets();
-    createScene();
+    populateScene();
 
-    lastTime = std::chrono::steady_clock::now();
-    while (!window.shouldClose()) {
-        window.pollEvents();
+    lastTime_ = std::chrono::steady_clock::now();
+    while (!window_.shouldClose()) {
+        window_.pollEvents();
         update();
         drawFrame();
     }
 
-    device.getDevice().waitIdle();
+    device_.getDevice().waitIdle();
 }
 
 vk::raii::Instance Engine::createInstance() {
@@ -122,8 +117,8 @@ vk::raii::Instance Engine::createInstance() {
         .apiVersion = vk::ApiVersion14
     };
 
-    checkLayers(context);
-    std::vector<const char *> extensions = checkExtensions(context);
+    checkLayers(context_);
+    std::vector<const char *> extensions = checkExtensions(context_);
 
     vk::InstanceCreateInfo createInfo{
         .pApplicationInfo = &appInfo,
@@ -133,7 +128,7 @@ vk::raii::Instance Engine::createInstance() {
         .ppEnabledExtensionNames = extensions.data()
     };
 
-    return {context, createInfo};
+    return {context_, createInfo};
 }
 
 vk::raii::DebugUtilsMessengerEXT Engine::createDebugMessenger() {
@@ -151,34 +146,34 @@ vk::raii::DebugUtilsMessengerEXT Engine::createDebugMessenger() {
         .pfnUserCallback = debugCallback
     };
 
-    return {instance, createInfo};
+    return {instance_, createInfo};
 }
 
 void Engine::createImageResources() {
-    assert(renderFinishedSemaphores.empty());
+    assert(renderFinishedSemaphores_.empty());
 
-    renderFinishedSemaphores.reserve(swapChain.getImageSize());
+    renderFinishedSemaphores_.reserve(swapChain_.getImageSize());
 
-    for (size_t i = 0; i < swapChain.getImageSize(); i++) {
-        renderFinishedSemaphores.emplace_back(device.getDevice(), vk::SemaphoreCreateInfo());
+    for (size_t i = 0; i < swapChain_.getImageSize(); i++) {
+        renderFinishedSemaphores_.emplace_back(device_.getDevice(), vk::SemaphoreCreateInfo());
     }
 }
 
 void Engine::createFrameResources() {
-    assert(frameResources.empty());
-    frameResources.reserve(Config::MAX_FRAMES_IN_FLIGHT);
+    assert(frameResources_.empty());
+    frameResources_.reserve(Config::MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < Config::MAX_FRAMES_IN_FLIGHT; ++i) {
-        frameResources.emplace_back(device, resources.getPool(), resources.getFrameLayout());
+        frameResources_.emplace_back(device_, resources_.getPool(), resources_.getFrameLayout());
     }
 }
 
 void Engine::update() {
     auto currentTime = std::chrono::steady_clock::now();
-    float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
-    lastTime = currentTime;
+    float deltaTime = std::chrono::duration<float>(currentTime - lastTime_).count();
+    lastTime_ = currentTime;
 
-    for (auto& [id, object] : scene.getObjects()) {
+    for (auto& [id, object] : scene_.getObjects()) {
         if (id == 0) {
             object.getTransform().rotate(glm::vec3(0.0f, 45.0f, 0.0f) * deltaTime);
         }
@@ -190,14 +185,14 @@ void Engine::update() {
 }
 
 void Engine::drawFrame() {
-    FrameResources& currentFrame = frameResources[frameIndex];
-    currentFrame.beginFrame(device.getDevice());
+    FrameResources& currentFrame = frameResources_[frameIndex_];
+    currentFrame.beginFrame(device_.getDevice());
 
-    auto [result, imageIndex] = swapChain.getSwapChain().acquireNextImage(
+    auto [result, imageIndex] = swapChain_.getSwapChain().acquireNextImage(
         UINT64_MAX, *currentFrame.getPresentCompleteSemaphore(), nullptr);
 
     if (result == vk::Result::eErrorOutOfDateKHR) {
-        swapChain.recreate(window, device);
+        swapChain_.recreate(window_, device_);
         return;
     }
     if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
@@ -207,34 +202,34 @@ void Engine::drawFrame() {
     FrameData frameData{
         .view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
         .proj = glm::perspective(glm::radians(45.0f),
-                                 static_cast<float>(swapChain.getExtent().width) /
-                                 static_cast<float>(swapChain.getExtent().height),
+                                 static_cast<float>(swapChain_.getExtent().width) /
+                                 static_cast<float>(swapChain_.getExtent().height),
                                  0.1f, 10.0f)
     };
     frameData.proj[1][1] *= -1;
     currentFrame.updateFrameData(frameData);
 
-    std::vector<const Object*> drawList;
-    drawList.reserve(scene.getObjects().size());
-    for (ObjectID id : scene.getDrawOrder()) {
-        scene.getObject(id).updateTransform();
-        drawList.push_back(&scene.getObject(id));
+    std::vector<const Object *> drawList;
+    drawList.reserve(scene_.getObjects().size());
+    for (ObjectID id : scene_.getDrawOrder()) {
+        scene_.getObject(id).updateTransform();
+        drawList.push_back(&scene_.getObject(id));
     }
 
-    device.getDevice().resetFences(*currentFrame.getInFlightFence());
+    device_.getDevice().resetFences(*currentFrame.getInFlightFence());
 
     RenderTarget target{
-        .swapChainImage = swapChain.getImage(imageIndex),
-        .swapChainImageView = swapChain.getImageView(imageIndex),
-        .colorImage = swapChain.getColorImage(),
-        .colorImageView = swapChain.getColorImageView(),
-        .depthImage = swapChain.getDepthImage(),
-        .depthImageView = swapChain.getDepthImageView(),
-        .extent = swapChain.getExtent()
+        .swapChainImage = swapChain_.getImage(imageIndex),
+        .swapChainImageView = swapChain_.getImageView(imageIndex),
+        .colorImage = swapChain_.getColorImage(),
+        .colorImageView = swapChain_.getColorImageView(),
+        .depthImage = swapChain_.getDepthImage(),
+        .depthImageView = swapChain_.getDepthImageView(),
+        .extent = swapChain_.getExtent()
     };
 
-    currentFrame.recordCommandBuffer(*graphicsPipeline.getPipeline(), *graphicsPipeline.getLayout(),
-                                     *currentFrame.getDescriptorSet(), target, frameIndex, drawList);
+    currentFrame.recordCommandBuffer(*graphicsPipeline_.getPipeline(), *graphicsPipeline_.getLayout(),
+                                     *currentFrame.getDescriptorSet(), target, frameIndex_, drawList);
 
     vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
     const vk::SubmitInfo submitInfo{
@@ -244,25 +239,25 @@ void Engine::drawFrame() {
         .commandBufferCount = 1,
         .pCommandBuffers = &*currentFrame.getCommandBuffer(),
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &*renderFinishedSemaphores[imageIndex]
+        .pSignalSemaphores = &*renderFinishedSemaphores_[imageIndex]
     };
-    device.getQueue().submit(submitInfo, *currentFrame.getInFlightFence());
+    device_.getQueue().submit(submitInfo, *currentFrame.getInFlightFence());
 
     const vk::PresentInfoKHR presentInfoKHR{
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &*renderFinishedSemaphores[imageIndex],
+        .pWaitSemaphores = &*renderFinishedSemaphores_[imageIndex],
         .swapchainCount = 1,
-        .pSwapchains = &*swapChain.getSwapChain(),
+        .pSwapchains = &*swapChain_.getSwapChain(),
         .pImageIndices = &imageIndex
     };
 
-    result = device.getQueue().presentKHR(presentInfoKHR);
-    if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR || window.needsResize()) {
-        window.clearResize();
-        swapChain.recreate(window, device);
+    result = device_.getQueue().presentKHR(presentInfoKHR);
+    if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR || window_.needsResize()) {
+        window_.clearResize();
+        swapChain_.recreate(window_, device_);
     } else {
         assert(result == vk::Result::eSuccess);
     }
 
-    frameIndex = (frameIndex + 1) % Config::MAX_FRAMES_IN_FLIGHT;
+    frameIndex_ = (frameIndex_ + 1) % Config::MAX_FRAMES_IN_FLIGHT;
 }

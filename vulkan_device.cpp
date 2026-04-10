@@ -23,7 +23,7 @@ namespace {
 
 VulkanDevice::VulkanDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface) {
     findPhysicalDevice(instance, surface);
-    msaaSamples = getMaxUsableSampleCount(physicalDevice);
+    msaaSamples_ = getMaxUsableSampleCount(physicalDevice_);
     createLogicalDevice();
     createCommandPool();
 }
@@ -76,8 +76,8 @@ void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const 
                 std::cout << "doesnt support bc7" << std::endl;
             }
 
-            physicalDevice = availableDevice;
-            queueIndex = foundQueueIndex;
+            physicalDevice_ = availableDevice;
+            queueIndex_ = foundQueueIndex;
             return;
         }
     }
@@ -103,7 +103,7 @@ void VulkanDevice::createLogicalDevice() {
     // only one queue, so priority doesn't matter
     float queuePriority = 0.5f;
     vk::DeviceQueueCreateInfo queueCreateInfo{
-        .queueFamilyIndex = queueIndex,
+        .queueFamilyIndex = queueIndex_,
         .queueCount = 1,
         .pQueuePriorities = &queuePriority
     };
@@ -116,25 +116,25 @@ void VulkanDevice::createLogicalDevice() {
         .ppEnabledExtensionNames = Config::requiredExtensions.data()
     };
 
-    device = vk::raii::Device(physicalDevice, createInfo);
-    graphicsQueue = vk::raii::Queue(device, queueIndex, 0);
+    device_ = vk::raii::Device(physicalDevice_, createInfo);
+    graphicsQueue_ = vk::raii::Queue(device_, queueIndex_, 0);
 }
 
 void VulkanDevice::createCommandPool() {
     vk::CommandPoolCreateInfo poolCreateInfo{
-        .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, .queueFamilyIndex = queueIndex
+        .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, .queueFamilyIndex = queueIndex_
     };
 
-    commandPool = vk::raii::CommandPool{device, poolCreateInfo};
+    commandPool_ = vk::raii::CommandPool{device_, poolCreateInfo};
 }
 
 vk::raii::CommandBuffer VulkanDevice::beginSingleTimeCommands() const {
     vk::CommandBufferAllocateInfo allocInfo{
-        .commandPool = *commandPool,
+        .commandPool = *commandPool_,
         .level = vk::CommandBufferLevel::ePrimary,
         .commandBufferCount = 1
     };
-    vk::raii::CommandBuffer commandBuffer = std::move(vk::raii::CommandBuffers(device, allocInfo).front());
+    vk::raii::CommandBuffer commandBuffer = std::move(vk::raii::CommandBuffers(device_, allocInfo).front());
 
     vk::CommandBufferBeginInfo beginInfo{
         .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
@@ -148,6 +148,6 @@ void VulkanDevice::endSingleTimeCommands(const vk::raii::CommandBuffer& commandB
     commandBuffer.end();
 
     vk::SubmitInfo submitInfo{.commandBufferCount = 1, .pCommandBuffers = &*commandBuffer};
-    graphicsQueue.submit(submitInfo, nullptr);
-    graphicsQueue.waitIdle();
+    graphicsQueue_.submit(submitInfo, nullptr);
+    graphicsQueue_.waitIdle();
 }

@@ -17,16 +17,17 @@ public:
 
     Texture& loadTexture(std::string_view name, const Assets::SamplerConfig& samplerConfig = Assets::SamplerConfig{});
 
-    Mesh& getMesh(const std::string& name) { return meshes.at(name); }
+    Mesh& getMesh(std::string_view name) { return meshes_.at(name.data()); }
 
-    Texture& getTexture(const std::string& name) { return textures.at(name); }
+    Texture& getTexture(std::string_view name) { return textures_.at(name.data()); }
 
     vk::Sampler getSampler(const Assets::SamplerConfig& config);
 
-    vk::DescriptorSetLayout getFrameLayout() { return frameLayout; }
-    vk::DescriptorSetLayout getMaterialLayout() { return materialLayout; }
-    vk::DescriptorSetLayout getObjectLayout() { return objectLayout; }
-    vk::DescriptorPool getPool() { return descriptorPool; }
+    vk::DescriptorSetLayout getFrameLayout() { return frameLayout_; }
+    vk::DescriptorSetLayout getMaterialLayout() { return materialLayout_; }
+    vk::DescriptorSetLayout getObjectLayout() { return objectLayout_; }
+    vk::DescriptorPool getPool() { return descriptorPool_; }
+
 private:
     vk::raii::DescriptorSetLayout createFrameLayout();
 
@@ -38,16 +39,16 @@ private:
 
     vk::raii::Sampler createSampler(Assets::SamplerConfig config);
 
-    const VulkanDevice& device;
+    const VulkanDevice& device_;
 
-    vk::raii::DescriptorPool descriptorPool;
+    vk::raii::DescriptorPool descriptorPool_;
 
-    std::unordered_map<std::string, Mesh> meshes;
-    std::unordered_map<std::string, Texture> textures;
+    std::unordered_map<std::string, Mesh> meshes_;
+    std::unordered_map<std::string, Texture> textures_;
 
-    vk::raii::DescriptorSetLayout frameLayout;
-    vk::raii::DescriptorSetLayout materialLayout;
-    vk::raii::DescriptorSetLayout objectLayout;
+    vk::raii::DescriptorSetLayout frameLayout_;
+    vk::raii::DescriptorSetLayout materialLayout_;
+    vk::raii::DescriptorSetLayout objectLayout_;
 
-    std::unordered_map<Assets::SamplerConfig, vk::raii::Sampler> textureSamplers;
+    std::unordered_map<Assets::SamplerConfig, vk::raii::Sampler> textureSamplers_;
 };
