@@ -113,6 +113,8 @@ add_executable (${TEMPLATE_NAME} main.cpp
         utils.h
         scene.cpp
         scene.h
+        camera.cpp
+        camera.h
 )
 
 set_target_properties (${TEMPLATE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEMPLATE_DIR})

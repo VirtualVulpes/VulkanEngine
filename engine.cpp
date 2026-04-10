@@ -193,6 +193,7 @@ void Engine::drawFrame() {
 
     if (result == vk::Result::eErrorOutOfDateKHR) {
         swapChain_.recreate(window_, device_);
+        scene_.getActiveCamera().setAspectRatio(static_cast<float>(swapChain_.getExtent().width) / swapChain_.getExtent().height);
         return;
     }
     if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
@@ -200,13 +201,9 @@ void Engine::drawFrame() {
     }
 
     FrameData frameData{
-        .view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
-        .proj = glm::perspective(glm::radians(45.0f),
-                                 static_cast<float>(swapChain_.getExtent().width) /
-                                 static_cast<float>(swapChain_.getExtent().height),
-                                 0.1f, 10.0f)
+        .view = scene_.getActiveCamera().getView(),
+        .proj = scene_.getActiveCamera().getProjection()
     };
-    frameData.proj[1][1] *= -1;
     currentFrame.updateFrameData(frameData);
 
     std::vector<const Object *> drawList;
@@ -255,6 +252,7 @@ void Engine::drawFrame() {
     if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR || window_.needsResize()) {
         window_.clearResize();
         swapChain_.recreate(window_, device_);
+        scene_.getActiveCamera().setAspectRatio(static_cast<float>(swapChain_.getExtent().width) / swapChain_.getExtent().height);
     } else {
         assert(result == vk::Result::eSuccess);
     }

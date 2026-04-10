@@ -1,4 +1,5 @@
 #pragma once
+
 #include <filesystem>
 
 namespace Config {
@@ -8,6 +9,8 @@ namespace Config {
 
     constexpr uint32_t WIDTH = 800;
     constexpr uint32_t HEIGHT = 600;
+
+    constexpr auto UP_DIRECTION = glm::vec3(0.0f, 1.0f, 0.0f);
 
     constexpr std::array<const char *, 2> requiredLayers{"VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor"};
 

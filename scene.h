@@ -1,5 +1,6 @@
 #pragma once
 
+#include "camera.h"
 #include "object.h"
 
 class ResourceManager;
@@ -20,6 +21,9 @@ public:
     std::vector<ObjectID>& getDrawOrder() { return drawOrder_; }
     const std::vector<ObjectID>& getDrawOrder() const { return drawOrder_; }
 
+    Camera& getActiveCamera() { return engineCamera_; }
+    const Camera& getActiveCamera() const { return engineCamera_; }
+
 private:
     ObjectID addObject(Object object);
 
@@ -30,4 +34,6 @@ private:
     std::vector<ObjectID> drawOrder_;
 
     ObjectID nextID_{0};
+
+    Camera engineCamera_{};
 };
