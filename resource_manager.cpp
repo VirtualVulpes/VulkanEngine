@@ -68,8 +68,8 @@ Mesh& ResourceManager::loadMesh(std::string_view name, const Assets::MeshData& d
     return it->second;
 }
 
-Mesh& ResourceManager::loadMesh(std::string_view name) {
-    std::filesystem::path path = Config::ModelPath / name;
+Mesh& ResourceManager::loadMesh(std::string_view name, std::string_view fileName) {
+    std::filesystem::path path = Config::ModelPath / fileName;
 
     Assets::MeshData data{};
     tinygltf::Model model;
@@ -149,16 +149,16 @@ Mesh& ResourceManager::loadMesh(std::string_view name) {
         }
     }
 
-    auto [it, inserted] = meshes_.try_emplace(path.stem().string(), device_, data);
+    auto [it, inserted] = meshes_.try_emplace(std::string{name}, device_, data);
 
     return it->second;
 }
 
-Texture& ResourceManager::loadTexture(std::string_view name, const Assets::SamplerConfig& samplerConfig) {
+Texture& ResourceManager::loadTexture(std::string_view name, std::string_view fileName, const Assets::SamplerConfig& samplerConfig) {
     if (auto it = textures_.find(std::string{name}); it != textures_.end())
         return it->second;
 
-    std::filesystem::path path = Config::TexturePath / name;
+    std::filesystem::path path = Config::TexturePath / fileName;
     auto data = loadKTX2(path);
 
     ImageConfig config{
@@ -173,7 +173,7 @@ Texture& ResourceManager::loadTexture(std::string_view name, const Assets::Sampl
         .descriptorSetCount = 1,
         .pSetLayouts = &*materialLayout_
     };
-    auto [it, inserted] = textures_.try_emplace(path.stem().string(), device_, data, config,
+    auto [it, inserted] = textures_.try_emplace(std::string{name}, device_, data, config,
                                                 std::move(
                                                     device_.getDevice().allocateDescriptorSets(allocInfo).front()));
     Texture& texture = it->second;

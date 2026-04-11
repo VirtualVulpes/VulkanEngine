@@ -74,7 +74,7 @@ void Engine::loadAssets() {
 
     resources_.loadMesh("plane", Shape::plane());
     resources_.loadMesh("cube", Shape::cube());
-    resources_.loadMesh("viking_room.glb");
+    resources_.loadMesh("viking_room", "viking_room.glb");
 
     // --- Textures ---
 
@@ -84,8 +84,8 @@ void Engine::loadAssets() {
         .addressMode = vk::SamplerAddressMode::eClampToEdge,
         .anisotropy = false
     };
-    resources_.loadTexture("viking_room.ktx2");
-    resources_.loadTexture("dirt.ktx2", lowResSampler);
+    resources_.loadTexture("viking_room", "viking_room.ktx2");
+    resources_.loadTexture("dirt", "dirt.ktx2", lowResSampler);
 }
 
 void Engine::populateScene() {

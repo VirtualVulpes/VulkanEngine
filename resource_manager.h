@@ -13,9 +13,9 @@ public:
 
     Mesh& loadMesh(std::string_view name, const Assets::MeshData& data);
 
-    Mesh& loadMesh(std::string_view name);
+    Mesh& loadMesh(std::string_view name, std::string_view fileName);
 
-    Texture& loadTexture(std::string_view name, const Assets::SamplerConfig& samplerConfig = Assets::SamplerConfig{});
+    Texture& loadTexture(std::string_view name, std::string_view fileName, const Assets::SamplerConfig& samplerConfig = Assets::SamplerConfig{});
 
     Mesh& getMesh(std::string_view name) { return meshes_.at(name.data()); }
 
