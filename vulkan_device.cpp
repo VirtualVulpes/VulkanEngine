@@ -47,7 +47,7 @@ void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const 
         bool supportsQueue = foundQueueIndex != VK_QUEUE_FAMILY_IGNORED;
 
         auto availableExtensions = availableDevice.enumerateDeviceExtensionProperties();
-        bool supportsExtensions = std::ranges::all_of(Config::requiredExtensions, [&](auto requiredExtension) {
+        bool supportsExtensions = std::ranges::all_of(Config::RequiredExtensions, [&](auto requiredExtension) {
             return std::ranges::any_of(availableExtensions, [&](const auto& extension) {
                 return strcmp(extension.extensionName, requiredExtension) == 0;
             });
@@ -112,8 +112,8 @@ void VulkanDevice::createLogicalDevice() {
         .pNext = &requiredFeatures.get<vk::PhysicalDeviceFeatures2>(),
         .queueCreateInfoCount = 1,
         .pQueueCreateInfos = &queueCreateInfo,
-        .enabledExtensionCount = static_cast<uint32_t>(Config::requiredExtensions.size()),
-        .ppEnabledExtensionNames = Config::requiredExtensions.data()
+        .enabledExtensionCount = static_cast<uint32_t>(Config::RequiredExtensions.size()),
+        .ppEnabledExtensionNames = Config::RequiredExtensions.data()
     };
 
     device_ = vk::raii::Device(physicalDevice_, createInfo);

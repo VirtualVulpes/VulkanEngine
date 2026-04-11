@@ -2,27 +2,30 @@
 
 #include <filesystem>
 
+using Clock = std::chrono::steady_clock;
+using TimePoint = std::chrono::time_point<Clock>;
+
 namespace Config {
-    constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-    constexpr uint32_t MAX_OBJECTS = 32;
-    constexpr uint32_t MAX_TEXTURES = 32;
+    constexpr int MaxFramesInFlight = 2;
+    constexpr uint32_t MaxObjects = 32;
+    constexpr uint32_t MaxTextures = 32;
 
-    constexpr uint32_t WIDTH = 800;
-    constexpr uint32_t HEIGHT = 600;
+    constexpr uint32_t WindowWidth = 800;
+    constexpr uint32_t WindowHeight = 600;
 
-    constexpr auto UP_DIRECTION = glm::vec3(0.0f, 1.0f, 0.0f);
+    constexpr auto WorldUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
-    constexpr std::array<const char *, 2> requiredLayers{"VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor"};
+    constexpr std::array<const char *, 2> RequiredLayers{"VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor"};
 
-    constexpr std::array requiredExtensions = {vk::KHRSwapchainExtensionName};
+    constexpr std::array RequiredExtensions = {vk::KHRSwapchainExtensionName};
 
-    inline const std::filesystem::path modelPath{"models/"};
-    inline const std::filesystem::path texturePath{"textures/"};
+    inline const std::filesystem::path ModelPath{"models/"};
+    inline const std::filesystem::path TexturePath{"textures/"};
 
 #ifdef NDEBUG
-    constexpr bool enableValidationLayers = false;
+    constexpr bool EnableValidationLayers = false;
 #else
-    constexpr bool enableValidationLayers = true;
+    constexpr bool EnableValidationLayers = true;
 #endif
 }
 

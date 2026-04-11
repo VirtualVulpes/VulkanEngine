@@ -10,7 +10,7 @@ public:
     Camera(glm::vec3 position = {0.0f, 2.0f, 2.0f},
            float yaw = 0.0f,
            float pitch = -90.0f,
-           float aspectRatio = static_cast<float>(Config::WIDTH) / Config::HEIGHT,
+           float aspectRatio = static_cast<float>(Config::WindowWidth) / Config::WindowHeight,
            float fov = glm::radians(60.0f));
 
     glm::mat4 getView() const;

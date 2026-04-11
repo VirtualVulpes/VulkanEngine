@@ -11,7 +11,7 @@ Camera::Camera(glm::vec3 position, float pitch, float yaw, float aspectRatio, fl
 }
 
 glm::mat4 Camera::getView() const {
-    return glm::lookAt(position_, position_ + forward_, Config::UP_DIRECTION);
+    return glm::lookAt(position_, position_ + forward_, Config::WorldUp);
 }
 
 glm::mat4 Camera::getProjection() const {
@@ -25,10 +25,10 @@ void Camera::update(float deltaTime, const InputManager& input) {
     if (input.isKeyPressed(Key::S)) position_ -= forward_ * speed_ * deltaTime;
     if (input.isKeyPressed(Key::A)) position_ -= right_ * speed_ * deltaTime;
     if (input.isKeyPressed(Key::D)) position_ += right_ * speed_ * deltaTime;
-    if (input.isKeyPressed(Key::C)) position_ -= Config::UP_DIRECTION * speed_ * deltaTime;
-    if (input.isKeyPressed(Key::SPACE)) position_ += Config::UP_DIRECTION * speed_ * deltaTime;
+    if (input.isKeyPressed(Key::C)) position_ -= Config::WorldUp * speed_ * deltaTime;
+    if (input.isKeyPressed(Key::Space)) position_ += Config::WorldUp * speed_ * deltaTime;
 
-    input.isKeyPressed(Key::SHIFT) ? speed_ = 9.0f : speed_ = 3.0f;
+    input.isKeyPressed(Key::Shift) ? speed_ = 9.0f : speed_ = 3.0f;
 
     glm::vec2 delta = input.getMouseDelta();
     yaw_ += delta.x * sensitivity_;
@@ -40,5 +40,5 @@ void Camera::update(float deltaTime, const InputManager& input) {
         sin(glm::radians(pitch_)),
         sin(glm::radians(yaw_)) * cos(glm::radians(pitch_))
     });
-    right_ = glm::normalize(glm::cross(forward_, Config::UP_DIRECTION));
+    right_ = glm::normalize(glm::cross(forward_, Config::WorldUp));
 }

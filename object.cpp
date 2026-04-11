@@ -15,7 +15,7 @@ Object::Object(const VulkanDevice& device, const Transform& transform, Mesh& mes
         buffer = Buffer::createMapped(sizeof(ObjectData), vk::BufferUsageFlagBits::eUniformBuffer, device);
     }
 
-    for (size_t i = 0; i < Config::MAX_FRAMES_IN_FLIGHT; i++) {
+    for (size_t i = 0; i < Config::MaxFramesInFlight; i++) {
         vk::DescriptorBufferInfo bufferInfo{
             .buffer = *objectBuffers_[i].buffer,
             .offset = 0,

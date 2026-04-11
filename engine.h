@@ -41,6 +41,7 @@ private:
     vk::raii::Instance instance_{nullptr};
     vk::raii::DebugUtilsMessengerEXT debugMessenger_{nullptr};
     Window window_;
+    InputManager& input_;
     VulkanDevice device_;
     SwapChain swapChain_;
     ResourceManager resources_;

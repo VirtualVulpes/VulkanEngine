@@ -69,7 +69,7 @@ Mesh& ResourceManager::loadMesh(std::string_view name, const Assets::MeshData& d
 }
 
 Mesh& ResourceManager::loadMesh(std::string_view name) {
-    std::filesystem::path path = Config::modelPath / name;
+    std::filesystem::path path = Config::ModelPath / name;
 
     Assets::MeshData data{};
     tinygltf::Model model;
@@ -158,7 +158,7 @@ Texture& ResourceManager::loadTexture(std::string_view name, const Assets::Sampl
     if (auto it = textures_.find(std::string{name}); it != textures_.end())
         return it->second;
 
-    std::filesystem::path path = Config::texturePath / name;
+    std::filesystem::path path = Config::TexturePath / name;
     auto data = loadKTX2(path);
 
     ImageConfig config{
@@ -249,21 +249,21 @@ vk::raii::DescriptorPool ResourceManager::createDescriptorPool() {
     std::array poolSizes{
         vk::DescriptorPoolSize{
             .type = vk::DescriptorType::eUniformBuffer,
-            .descriptorCount = Config::MAX_FRAMES_IN_FLIGHT * (1 + Config::MAX_OBJECTS) // frame + object sets
+            .descriptorCount = Config::MaxFramesInFlight * (1 + Config::MaxObjects) // frame + object sets
         },
         vk::DescriptorPoolSize{
             .type = vk::DescriptorType::eSampledImage,
-            .descriptorCount = Config::MAX_TEXTURES
+            .descriptorCount = Config::MaxTextures
         },
         vk::DescriptorPoolSize{
             .type = vk::DescriptorType::eSampler,
-            .descriptorCount = Config::MAX_TEXTURES
+            .descriptorCount = Config::MaxTextures
         }
     };
 
     vk::DescriptorPoolCreateInfo info{
         .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-        .maxSets = Config::MAX_FRAMES_IN_FLIGHT + Config::MAX_OBJECTS + Config::MAX_TEXTURES,
+        .maxSets = Config::MaxFramesInFlight + Config::MaxObjects + Config::MaxTextures,
         .poolSizeCount = poolSizes.size(),
         .pPoolSizes = poolSizes.data()
     };

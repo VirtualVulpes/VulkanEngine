@@ -26,7 +26,7 @@ private:
     Mesh& mesh_;
     Texture& texture_;
 
-    std::array<MappedBuffer, Config::MAX_FRAMES_IN_FLIGHT> objectBuffers_;
+    std::array<MappedBuffer, Config::MaxFramesInFlight> objectBuffers_;
     std::vector<vk::raii::DescriptorSet> descriptorSets_;
     void* mappedPtr_{nullptr};
 };

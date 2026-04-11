@@ -117,6 +117,8 @@ add_executable (${TEMPLATE_NAME} main.cpp
         camera.h
         input_manager.cpp
         input_manager.h
+        glfw_input_translator.cpp
+        glfw_input_translator.h
 )
 
 set_target_properties (${TEMPLATE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEMPLATE_DIR})

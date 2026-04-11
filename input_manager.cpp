@@ -1,34 +1,45 @@
 #include "input_manager.h"
 
-#include "window.h"
-
-InputManager::InputManager(GLFWwindow* window) {
-    glfwSetKeyCallback(window, [](GLFWwindow* rawWindow, int key, int scancode, int action, int mods) {
-        if (key < 0 || key >= GLFW_KEY_LAST) return;
-        auto& input = static_cast<Window *>(glfwGetWindowUserPointer(rawWindow))->getInputManager();
-        if (action == GLFW_PRESS) input.getCurrentState().keys.set(key);
-        if (action == GLFW_RELEASE) input.getCurrentState().keys.reset(key);
-    });
-
-    glfwSetMouseButtonCallback(window, [](GLFWwindow* rawWindow, int button, int action, int mods) {
-        auto* pWindow = static_cast<Window *>(glfwGetWindowUserPointer(rawWindow));
-        if (action == GLFW_PRESS) {
-            if (button == GLFW_MOUSE_BUTTON_1) {
-                glfwSetInputMode(pWindow->getRawWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            } else {
-                pWindow->getInputManager().getCurrentState().mouseButtons.set(button);
-            }
-        } else if (action == GLFW_RELEASE) {
-            pWindow->getInputManager().getCurrentState().mouseButtons.reset(button);
-        }
-    });
-
-    glfwSetCursorPosCallback(window, [](GLFWwindow* rawWindow, double xpos, double ypos) {\
-        auto& input = static_cast<Window *>(glfwGetWindowUserPointer(rawWindow))->getInputManager();
-        input.getCurrentState().mousePosition = {xpos, ypos};
-    });
+InputManager::InputManager(glm::dvec2 mousePos) {
+    currentState_.mousePosition = mousePos;
 }
 
 void InputManager::update() {
     previousState_ = currentState_;
 }
+
+void InputManager::lateUpdate() {
+    if (Clock::now() < ignoreMouseExpiry_) {
+        previousState_.mousePosition = currentState_.mousePosition;
+    }
+}
+
+// does not clear mouse position
+void InputManager::reset() {
+    currentState_.keys.reset();
+    currentState_.mouseButtons.reset();
+    previousState_.keys.reset();
+    previousState_.mouseButtons.reset();
+}
+
+void InputManager::updateMousePosition(glm::dvec2 newPosition) {
+    currentState_.mousePosition = newPosition;
+    previousState_.mousePosition = newPosition;
+}
+
+void InputManager::onKeyEvent(Key key, InputAction action) {
+    if (key == Key::Unknown || key == Key::Count) return;
+
+    if (action == InputAction::Press) currentState_.keys.set(static_cast<size_t>(key));
+    else if (action == InputAction::Release) currentState_.keys.reset(static_cast<size_t>(key));
+}
+
+void InputManager::onMouseButton(MouseButton button, InputAction action) {
+    if (action == InputAction::Press) currentState_.mouseButtons.set(static_cast<size_t>(button));
+    else if (action == InputAction::Release) currentState_.mouseButtons.reset(static_cast<size_t>(button));
+}
+
+void InputManager::onMouseMove(glm::dvec2 mousePos) {
+    currentState_.mousePosition = mousePos;
+}
+

@@ -12,7 +12,7 @@ namespace {
     void checkLayers(const vk::raii::Context& context) {
         std::vector<vk::LayerProperties> availableLayers = context.enumerateInstanceLayerProperties();
 
-        if (!std::ranges::all_of(Config::requiredLayers, [&](auto requiredLayer) {
+        if (!std::ranges::all_of(Config::RequiredLayers, [&](auto requiredLayer) {
             return std::ranges::any_of(availableLayers, [&](const auto& layer) {
                 return strcmp(layer.layerName, requiredLayer) == 0;
             });
@@ -26,7 +26,7 @@ namespace {
         const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
         std::vector requiredExtensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-        if (Config::enableValidationLayers) {
+        if (Config::EnableValidationLayers) {
             requiredExtensions.push_back(vk::EXTDebugUtilsExtensionName);
         }
 
@@ -56,13 +56,14 @@ namespace {
 Engine::Engine() : glfwManager_(),
                    instance_(createInstance()),
                    debugMessenger_(createDebugMessenger()),
-                   window_({100, 100}, {Config::WIDTH, Config::HEIGHT}, "Vulkan Engine", instance_),
+                   window_({100, 100}, {Config::WindowWidth, Config::WindowHeight}, "Vulkan Engine", instance_),
+                   input_(window_.getInputManager()),
                    device_(instance_, window_.getSurface()),
                    swapChain_(window_.getSurface(), window_.getFramebufferSize(), device_),
                    resources_(device_),
                    graphicsPipeline_(device_, swapChain_.getColorFormat(), swapChain_.getDepthFormat(),
-                                    resources_.getFrameLayout(), resources_.getMaterialLayout(),
-                                    resources_.getObjectLayout()),
+                                     resources_.getFrameLayout(), resources_.getMaterialLayout(),
+                                     resources_.getObjectLayout()),
                    scene_(device_, resources_) {
     createImageResources();
     createFrameResources();
@@ -96,7 +97,6 @@ void Engine::populateScene() {
 
     Transform planeTransform{{0.0f, 0.0f, 0.0f}, {-90.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
     scene_.createObject(planeTransform, "plane", "dirt");
-
 }
 
 void Engine::run() {
@@ -105,7 +105,9 @@ void Engine::run() {
 
     lastTime_ = std::chrono::steady_clock::now();
     while (!window_.shouldClose()) {
+        input_.update();
         window_.update();
+        input_.lateUpdate();
         update(calculateDeltaTime());
         drawFrame();
     }
@@ -127,8 +129,8 @@ vk::raii::Instance Engine::createInstance() {
 
     vk::InstanceCreateInfo createInfo{
         .pApplicationInfo = &appInfo,
-        .enabledLayerCount = static_cast<uint32_t>(Config::requiredLayers.size()),
-        .ppEnabledLayerNames = Config::requiredLayers.data(),
+        .enabledLayerCount = static_cast<uint32_t>(Config::RequiredLayers.size()),
+        .ppEnabledLayerNames = Config::RequiredLayers.data(),
         .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
         .ppEnabledExtensionNames = extensions.data()
     };
@@ -137,7 +139,7 @@ vk::raii::Instance Engine::createInstance() {
 }
 
 vk::raii::DebugUtilsMessengerEXT Engine::createDebugMessenger() {
-    if constexpr (!Config::enableValidationLayers) return nullptr;
+    if constexpr (!Config::EnableValidationLayers) return nullptr;
 
     constexpr vk::DebugUtilsMessageSeverityFlagsEXT severity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eError |
                                                                vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning;
@@ -166,33 +168,29 @@ void Engine::createImageResources() {
 
 void Engine::createFrameResources() {
     assert(frameResources_.empty());
-    frameResources_.reserve(Config::MAX_FRAMES_IN_FLIGHT);
+    frameResources_.reserve(Config::MaxFramesInFlight);
 
-    for (size_t i = 0; i < Config::MAX_FRAMES_IN_FLIGHT; ++i) {
+    for (size_t i = 0; i < Config::MaxFramesInFlight; ++i) {
         frameResources_.emplace_back(device_, resources_.getPool(), resources_.getFrameLayout());
     }
 }
 
 void Engine::update(float deltaTime) {
-    for (auto& [id, object] : scene_.getObjects()) {
-        if (id == 1) {
-            object.getTransform().rotate(glm::vec3(-40.0f, 30.0f, -20.0f) * deltaTime);
-        }
-    }
+    scene_.getObject(1).getTransform().rotate(glm::vec3(-40.0f, 30.0f, -20.0f) * deltaTime);
 
-    if (window_.getInputManager().isKeyJustPressed(Key::ESCAPE)) {
+    if (input_.isKeyJustPressed(Key::Escape)) {
         window_.close();
     }
 
-    if (window_.getInputManager().isKeyJustPressed(Key::F11)) {
+    if (input_.isKeyJustPressed(Key::F11)) {
         window_.toggleFullscreen();
     }
 
-    scene_.getActiveCamera().update(deltaTime, window_.getInputManager());
+    scene_.getActiveCamera().update(deltaTime, input_);
 }
 
 float Engine::calculateDeltaTime() {
-    auto currentTime = std::chrono::steady_clock::now();
+    auto currentTime = Clock::now();
     float deltaTime = std::chrono::duration<float>(currentTime - lastTime_).count();
     lastTime_ = currentTime;
 
@@ -208,7 +206,9 @@ void Engine::drawFrame() {
 
     if (result == vk::Result::eErrorOutOfDateKHR) {
         swapChain_.recreate(window_, device_);
-        scene_.getActiveCamera().setAspectRatio(static_cast<float>(swapChain_.getExtent().width) / swapChain_.getExtent().height);
+        scene_.getActiveCamera().setAspectRatio(
+            static_cast<float>(swapChain_.getExtent().width) / swapChain_.getExtent().height);
+        input_.updateMousePosition(window_.getMousePosition());
         return;
     }
     if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
@@ -267,10 +267,12 @@ void Engine::drawFrame() {
     if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR || window_.needsResize()) {
         window_.clearResize();
         swapChain_.recreate(window_, device_);
-        scene_.getActiveCamera().setAspectRatio(static_cast<float>(swapChain_.getExtent().width) / swapChain_.getExtent().height);
+        scene_.getActiveCamera().setAspectRatio(
+            static_cast<float>(swapChain_.getExtent().width) / swapChain_.getExtent().height);
+        input_.updateMousePosition(window_.getMousePosition());
     } else {
         assert(result == vk::Result::eSuccess);
     }
 
-    frameIndex_ = (frameIndex_ + 1) % Config::MAX_FRAMES_IN_FLIGHT;
+    frameIndex_ = (frameIndex_ + 1) % Config::MaxFramesInFlight;
 }
