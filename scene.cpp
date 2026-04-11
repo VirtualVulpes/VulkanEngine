@@ -6,7 +6,7 @@
 Scene::Scene(const VulkanDevice& device, ResourceManager& resources) : device_(device), resources_(resources) {
 }
 
-ObjectID Scene::createObject(Transform transform, std::string_view mesh, std::string_view texture) {
+ObjectID Scene::createObject(Transform transform, std::string_view mesh, std::string_view material) {
     std::vector layouts(Config::MaxFramesInFlight, resources_.getObjectLayout());
     vk::DescriptorSetAllocateInfo allocInfo{
         .descriptorPool = resources_.getPool(),
@@ -16,8 +16,7 @@ ObjectID Scene::createObject(Transform transform, std::string_view mesh, std::st
     auto descriptorSets = device_.getDevice().allocateDescriptorSets(allocInfo);
 
     return addObject({
-        device_, transform, resources_.getMesh(mesh),
-        resources_.getTexture(texture), std::move(descriptorSets)
+        device_, transform, resources_.getMesh(mesh), resources_.getMaterial(material), std::move(descriptorSets)
     });
 }
 

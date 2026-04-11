@@ -26,7 +26,7 @@ private:
 
     void createFrameResources();
 
-    void loadAssets();
+    void loadResources();
 
     void populateScene();
 
@@ -45,7 +45,6 @@ private:
     VulkanDevice device_;
     SwapChain swapChain_;
     ResourceManager resources_;
-    GraphicsPipeline graphicsPipeline_;
 
     std::vector<FrameResources> frameResources_;
     std::vector<vk::raii::Semaphore> renderFinishedSemaphores_; // outside of frame resources, not one per frame

@@ -6,51 +6,23 @@
 #include "swap_chain.h"
 #include "vulkan_device.h"
 
-namespace {
-    std::vector<char> readFile(std::string_view filename) {
-        std::ifstream file(filename.data(), std::ios::ate | std::ios::binary);
-
-        if (!file.is_open()) {
-            throw std::runtime_error("failed to open file");
-        }
-
-        std::vector<char> buffer(file.tellg());
-        file.seekg(0, std::ios::beg);
-        file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-        file.close();
-
-        return buffer;
-    }
-
-    vk::raii::ShaderModule createShaderModule(const vk::raii::Device& device,
-                                              const std::vector<char>& code) {
-        vk::ShaderModuleCreateInfo createInfo{
-            .codeSize = code.size() * sizeof(char), .pCode = reinterpret_cast<const uint32_t *>(code.data())
-        };
-
-        return {device, createInfo};
-    }
-}
-
-GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, vk::Format colorFormat, vk::Format depthFormat,
-                                   vk::DescriptorSetLayout frameLayout, vk::DescriptorSetLayout textureLayout, vk::DescriptorSetLayout objectLayout) {
-    vk::raii::ShaderModule shaderModule = createShaderModule(device.getDevice(), readFile("shaders/slang.spv"));
-
+GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, Assets::PipelineConfig config,
+                                   const Assets::Shader& shader,
+                                   vk::DescriptorSetLayout frame, vk::DescriptorSetLayout material,
+                                   vk::DescriptorSetLayout object) {
     vk::PipelineShaderStageCreateInfo vertShaderCreateInfo{
         .stage = vk::ShaderStageFlagBits::eVertex,
-        .module = shaderModule,
+        .module = shader.vert,
         .pName = "vertMain"
     };
 
     vk::PipelineShaderStageCreateInfo fragShaderCreateInfo{
         .stage = vk::ShaderStageFlagBits::eFragment,
-        .module = shaderModule,
+        .module = shader.frag,
         .pName = "fragMain"
     };
 
-    vk::PipelineShaderStageCreateInfo shaderCreateInfo[]{
-        vertShaderCreateInfo, fragShaderCreateInfo
-    };
+    std::array stages = {vertShaderCreateInfo, fragShaderCreateInfo};
 
     auto bindingDescription = Vertex::getBindingDescription();
     auto attributeDescriptions = Vertex::getAttributeDescriptions();
@@ -73,7 +45,7 @@ GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, vk::Format colorF
     vk::PipelineRasterizationStateCreateInfo rasterizationCreateInfo{
         .depthClampEnable = vk::False,
         .rasterizerDiscardEnable = vk::False,
-        .polygonMode = vk::PolygonMode::eFill,
+        .polygonMode = config.polygonMode,
         .cullMode = vk::CullModeFlagBits::eBack,
         .frontFace = vk::FrontFace::eCounterClockwise,
         .depthBiasEnable = vk::False,
@@ -108,7 +80,7 @@ GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, vk::Format colorF
         .stencilTestEnable = vk::False
     };
 
-    std::array layouts = {frameLayout, textureLayout, objectLayout};
+    std::array layouts = {frame, material, object};
     vk::PipelineLayoutCreateInfo layoutCreateInfo{
         .setLayoutCount = static_cast<uint32_t>(layouts.size()),
         .pSetLayouts = layouts.data()
@@ -118,7 +90,7 @@ GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, vk::Format colorF
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> createInfo = {
         {
             .stageCount = 2,
-            .pStages = shaderCreateInfo,
+            .pStages = stages.data(),
             .pVertexInputState = &vertexCreateInfo,
             .pInputAssemblyState = &inputAssemblyCreateInfo,
             .pViewportState = &viewportCreateInfo,
@@ -129,7 +101,10 @@ GraphicsPipeline::GraphicsPipeline(const VulkanDevice& device, vk::Format colorF
             .pDynamicState = &dynamicStateCreateInfo,
             .layout = *layout_,
         },
-        {.colorAttachmentCount = 1, .pColorAttachmentFormats = &colorFormat, .depthAttachmentFormat = depthFormat}
+        {
+            .colorAttachmentCount = 1, .pColorAttachmentFormats = &config.colorFormat,
+            .depthAttachmentFormat = config.depthFormat
+        }
     };
 
     pipeline_ = vk::raii::Pipeline(device.getDevice(), nullptr, createInfo.get<vk::GraphicsPipelineCreateInfo>());

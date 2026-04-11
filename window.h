@@ -2,7 +2,6 @@
 
 #include <GLFW/glfw3.h>
 
-#include "constants.h"
 #include "input_manager.h"
 
 class Window {

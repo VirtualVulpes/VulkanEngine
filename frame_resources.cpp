@@ -1,5 +1,8 @@
 #include "frame_resources.h"
 
+#include <iostream>
+
+#include "graphics_pipeline.h"
 #include "image.h"
 #include "object.h"
 #include "vulkan_device.h"
@@ -18,10 +21,10 @@ FrameResources::FrameResources(const VulkanDevice& device, vk::DescriptorPool de
     inFlightFence_ = vk::raii::Fence(device.getDevice(), {.flags = vk::FenceCreateFlagBits::eSignaled});
 
     uniformBuffer_ = Buffer::createAllocation(sizeof(FrameData),
-                                             vk::BufferUsageFlagBits::eUniformBuffer,
-                                             vk::MemoryPropertyFlagBits::eHostVisible |
-                                             vk::MemoryPropertyFlagBits::eHostCoherent,
-                                             device);
+                                              vk::BufferUsageFlagBits::eUniformBuffer,
+                                              vk::MemoryPropertyFlagBits::eHostVisible |
+                                              vk::MemoryPropertyFlagBits::eHostCoherent,
+                                              device);
 
     vk::DescriptorSetAllocateInfo allocInfo{
         .descriptorPool = descriptorPool,
@@ -37,7 +40,7 @@ FrameResources::FrameResources(const VulkanDevice& device, vk::DescriptorPool de
         .range = sizeof(FrameData)
     };
 
-    vk::WriteDescriptorSet write {
+    vk::WriteDescriptorSet write{
         .dstSet = descriptorSet_,
         .dstBinding = 0,
         .dstArrayElement = 0,
@@ -57,11 +60,9 @@ void FrameResources::beginFrame(const vk::raii::Device& device) {
     commandBuffer_.reset();
 }
 
-void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
-                                         vk::PipelineLayout pipelineLayout,
-                                         vk::DescriptorSet frameDescriptorSet, RenderTarget renderTarget,
+void FrameResources::recordCommandBuffer(vk::DescriptorSet frameDescriptorSet, RenderTarget renderTarget,
                                          uint32_t frameIndex,
-                                         std::span<const Object* const> objects) const {
+                                         std::span<const Object * const> objects) {
     commandBuffer_.begin({});
 
     Image::transitionLayout(
@@ -126,31 +127,45 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
     };
 
     commandBuffer_.beginRendering(renderingInfo);
-    commandBuffer_.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
     commandBuffer_.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(renderTarget.extent.width),
-                                              static_cast<float>(renderTarget.extent.height), 0.0f, 1.0f));
+                                               static_cast<float>(renderTarget.extent.height), 0.0f, 1.0f));
     commandBuffer_.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), renderTarget.extent));
+
+    if (objects.empty()) {
+        endRendering(renderTarget);
+        return;
+    }
 
     // bind frame data
     commandBuffer_.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
-        pipelineLayout,
+        objects[0]->getMaterial().pipeline->getLayout(),
         0,
         {frameDescriptorSet},
         {}
     );
 
+    const GraphicsPipeline* boundPipeline{nullptr};
     vk::DescriptorSet currentTexture{nullptr};
     vk::Buffer currentVertexBuffer{nullptr};
     vk::Buffer currentIndexBuffer{nullptr};
 
     for (const auto* object : objects) {
+        // bind pipeline
+        const GraphicsPipeline* pipeline = object->getMaterial().pipeline;
+
+        if (pipeline != boundPipeline) {
+            commandBuffer_.bindPipeline(vk::PipelineBindPoint::eGraphics,
+                                        *pipeline->getPipeline());
+            boundPipeline = pipeline;
+        }
+
         // bind texture
-        vk::DescriptorSet textureDescriptor = object->getTexture().getDescriptorSet();
+        vk::DescriptorSet textureDescriptor = object->getMaterial().texture.getDescriptorSet();
         if (textureDescriptor != currentTexture) {
             commandBuffer_.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics,
-                pipelineLayout,
+                *pipeline->getLayout(),
                 1,
                 {textureDescriptor},
                 {}
@@ -175,7 +190,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         // bind object-specific data
         commandBuffer_.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            pipelineLayout,
+            pipeline->getLayout(),
             2,
             {object->getDescriptorSet(frameIndex)},
             {}
@@ -183,10 +198,13 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
         commandBuffer_.drawIndexed(object->getMesh().getIndexAmount(), 1, 0, 0, 0);
     }
 
-    commandBuffer_.endRendering();
+    endRendering(renderTarget);
+}
 
+void FrameResources::endRendering(RenderTarget target) {
+    commandBuffer_.endRendering();
     Image::transitionLayout(
-        renderTarget.swapChainImage,
+        target.swapChainImage,
         vk::ImageLayout::eColorAttachmentOptimal,
         vk::ImageLayout::ePresentSrcKHR,
         vk::AccessFlagBits2::eColorAttachmentWrite,
@@ -199,7 +217,7 @@ void FrameResources::recordCommandBuffer(vk::Pipeline graphicsPipeline,
     commandBuffer_.end();
 }
 
-void FrameResources::updateFrameData(const FrameData& data) const {
+void FrameResources::updateFrameData(const FrameData& data) {
     void* mapped = uniformBuffer_.memory.mapMemory(0, sizeof(FrameData));
     memcpy(mapped, &data, sizeof(FrameData));
     uniformBuffer_.memory.unmapMemory();

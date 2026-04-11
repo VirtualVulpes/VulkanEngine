@@ -10,7 +10,7 @@ class Scene {
 public:
     Scene(const VulkanDevice& device, ResourceManager& resources);
 
-    ObjectID createObject(Transform transform, std::string_view mesh, std::string_view texture);
+    ObjectID createObject(Transform transform, std::string_view mesh, std::string_view material);
 
     const Object& getObject(ObjectID id) const { return objects_.at(id); }
     Object& getObject(ObjectID id) { return objects_.at(id); }

@@ -54,6 +54,21 @@ namespace {
         ktxTexture2_Destroy(ktxTex2);
         return data;
     }
+
+    std::vector<char> readFile(const std::filesystem::path& path) {
+        std::ifstream file(path, std::ios::ate | std::ios::binary);
+
+        if (!file.is_open()) {
+            throw std::runtime_error("failed to open file");
+        }
+
+        std::vector<char> buffer(file.tellg());
+        file.seekg(0, std::ios::beg);
+        file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        file.close();
+
+        return buffer;
+    }
 }
 
 ResourceManager::ResourceManager(const VulkanDevice& device) : device_(device),
@@ -150,11 +165,11 @@ Mesh& ResourceManager::loadMesh(std::string_view name, std::string_view fileName
     }
 
     auto [it, inserted] = meshes_.try_emplace(std::string{name}, device_, data);
-
     return it->second;
 }
 
-Texture& ResourceManager::loadTexture(std::string_view name, std::string_view fileName, const Assets::SamplerConfig& samplerConfig) {
+Texture& ResourceManager::loadTexture(std::string_view name, std::string_view fileName,
+                                      const Assets::SamplerConfig& samplerConfig) {
     if (auto it = textures_.find(std::string{name}); it != textures_.end())
         return it->second;
 
@@ -193,6 +208,46 @@ Texture& ResourceManager::loadTexture(std::string_view name, std::string_view fi
     device_.getDevice().updateDescriptorSets(samplerWrite, nullptr);
 
     return texture;
+}
+
+vk::raii::ShaderModule& ResourceManager::loadShaderModule(std::string_view name, std::string_view fileName) {
+    std::vector<char> code = readFile(Config::ShaderPath / fileName);
+
+    vk::ShaderModuleCreateInfo createInfo{
+        .codeSize = code.size() * sizeof(char), .pCode = reinterpret_cast<const uint32_t *>(code.data())
+    };
+
+    auto [it, inserted] = shaderModules_.try_emplace(std::string{name}, device_.getDevice(), createInfo);
+    return it->second;
+}
+
+Assets::Shader& ResourceManager::createShader(std::string_view name, std::string_view vertName,
+                                              std::string_view fragName) {
+    Assets::Shader shader{
+        *shaderModules_.at(vertName.data()),
+        *shaderModules_.at(fragName.data())
+    };
+
+    auto [it, inserted] = shaders_.try_emplace(std::string{name}, shader);
+    return it->second;
+}
+
+Assets::Material& ResourceManager::createMaterial(std::string_view name, std::string_view pipeline,
+                                                  std::string_view texture) {
+    Assets::Material material{
+        .pipeline = &pipelines_.at(pipeline.data()),
+        .texture = textures_.at(texture.data())
+    };
+
+    auto [it, inserted] = materials_.try_emplace(std::string{name}, material);
+    return it->second;
+}
+
+const GraphicsPipeline& ResourceManager::createPipeline(std::string_view name, const Assets::PipelineConfig& config,
+                                                        std::string_view shader) {
+    auto [it, inserted] = pipelines_.try_emplace(std::string{name}, device_, config, getShader(shader.data()),
+                                                 frameLayout_, materialLayout_, objectLayout_);
+    return it->second;
 }
 
 vk::raii::DescriptorSetLayout ResourceManager::createFrameLayout() {

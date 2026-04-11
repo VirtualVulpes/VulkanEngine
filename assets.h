@@ -2,6 +2,8 @@
 
 #include "utils.h"
 
+class Texture;
+class GraphicsPipeline;
 struct Vertex;
 
 namespace Assets {
@@ -26,6 +28,22 @@ namespace Assets {
         bool anisotropy{true};
 
         bool operator==(const SamplerConfig&) const = default;
+    };
+
+    struct Shader {
+        vk::ShaderModule vert;
+        vk::ShaderModule frag;
+    };
+
+    struct Material {
+        GraphicsPipeline* pipeline;
+        Texture& texture;
+    };
+
+    struct PipelineConfig {
+        vk::Format colorFormat;
+        vk::Format depthFormat;
+        vk::PolygonMode polygonMode = vk::PolygonMode::eFill;
     };
 }
 

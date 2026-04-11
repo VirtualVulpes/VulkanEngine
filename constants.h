@@ -26,6 +26,7 @@ namespace Config {
     // --- Paths ---
     inline const std::filesystem::path ModelPath{"models/"};
     inline const std::filesystem::path TexturePath{"textures/"};
+    inline const std::filesystem::path ShaderPath{"shaders/"};
 
 #ifdef NDEBUG
     constexpr bool EnableValidationLayers = false;

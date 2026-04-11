@@ -61,15 +61,12 @@ Engine::Engine() : glfwManager_(),
                    device_(instance_, window_.getSurface()),
                    swapChain_(window_.getSurface(), window_.getFramebufferSize(), device_),
                    resources_(device_),
-                   graphicsPipeline_(device_, swapChain_.getColorFormat(), swapChain_.getDepthFormat(),
-                                     resources_.getFrameLayout(), resources_.getMaterialLayout(),
-                                     resources_.getObjectLayout()),
                    scene_(device_, resources_) {
     createImageResources();
     createFrameResources();
 }
 
-void Engine::loadAssets() {
+void Engine::loadResources() {
     // --- Meshes ---
 
     resources_.loadMesh("plane", Shape::plane());
@@ -86,6 +83,39 @@ void Engine::loadAssets() {
     };
     resources_.loadTexture("viking_room", "viking_room.ktx2");
     resources_.loadTexture("dirt", "dirt.ktx2", lowResSampler);
+    resources_.loadTexture("default", "default.ktx2", lowResSampler);
+
+    // --- Shaders ---
+
+    resources_.loadShaderModule("default_vert", "default.vert.spv");
+    resources_.loadShaderModule("default_frag", "default.frag.spv");
+    resources_.loadShaderModule("lit_frag", "lit.frag.spv");
+
+    resources_.createShader("default", "default_vert", "default_frag");
+    resources_.createShader("lit", "default_vert", "lit_frag");
+
+    // --- Pipelines ---
+
+    Assets::PipelineConfig defaultPipeline{
+        .colorFormat = swapChain_.getColorFormat(),
+        .depthFormat = swapChain_.getDepthFormat(),
+    };
+    resources_.createPipeline("default", defaultPipeline, "default");
+    resources_.createPipeline("lit", defaultPipeline, "lit");
+
+    Assets::PipelineConfig wireframePipeline {
+        .colorFormat = swapChain_.getColorFormat(),
+        .depthFormat = swapChain_.getDepthFormat(),
+        .polygonMode = vk::PolygonMode::eLine
+    };
+    resources_.createPipeline("wireframe", wireframePipeline, "default");
+
+    // --- Materials ---
+
+    resources_.createMaterial("viking_room", "default", "viking_room");
+    resources_.createMaterial("dirt", "default", "dirt");
+    resources_.createMaterial("lit", "lit", "dirt");
+    resources_.createMaterial("wireframe", "wireframe", "default");
 }
 
 void Engine::populateScene() {
@@ -93,14 +123,14 @@ void Engine::populateScene() {
     scene_.createObject(roomTransform, "viking_room", "viking_room");
 
     Transform cubeTransform{{0.8f, 0.8f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
-    scene_.createObject(cubeTransform, "cube", "dirt");
+    scene_.createObject(cubeTransform, "cube", "lit");
 
     Transform planeTransform{{0.0f, 0.0f, 0.0f}, {-90.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
     scene_.createObject(planeTransform, "plane", "dirt");
 }
 
 void Engine::run() {
-    loadAssets();
+    loadResources();
     populateScene();
 
     lastTime_ = std::chrono::steady_clock::now();
@@ -228,6 +258,11 @@ void Engine::drawFrame() {
         drawList.push_back(&scene_.getObject(id));
     }
 
+    // sort objects by pipeline
+    std::ranges::sort(drawList, [](const Object* a, const Object* b) {
+        return a->getMaterial().pipeline < b->getMaterial().pipeline;
+    });
+
     device_.getDevice().resetFences(*currentFrame.getInFlightFence());
 
     RenderTarget target{
@@ -240,8 +275,7 @@ void Engine::drawFrame() {
         .extent = swapChain_.getExtent()
     };
 
-    currentFrame.recordCommandBuffer(*graphicsPipeline_.getPipeline(), *graphicsPipeline_.getLayout(),
-                                     *currentFrame.getDescriptorSet(), target, frameIndex_, drawList);
+    currentFrame.recordCommandBuffer(*currentFrame.getDescriptorSet(), target, frameIndex_, drawList);
 
     vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
     const vk::SubmitInfo submitInfo{

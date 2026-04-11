@@ -8,9 +8,9 @@ namespace {
     };
 }
 
-Object::Object(const VulkanDevice& device, const Transform& transform, Mesh& mesh,
-               Texture& texture, std::vector<vk::raii::DescriptorSet> descriptorSets) : transform_(transform), mesh_(mesh),
-    texture_(texture), descriptorSets_(std::move(descriptorSets)) {
+Object::Object(const VulkanDevice& device, const Transform& transform, const Mesh& mesh,
+               const Assets::Material& material, std::vector<vk::raii::DescriptorSet> descriptorSets) : transform_(transform),
+    mesh_(mesh), material_(material), descriptorSets_(std::move(descriptorSets)) {
     for (auto& buffer : objectBuffers_) {
         buffer = Buffer::createMapped(sizeof(ObjectData), vk::BufferUsageFlagBits::eUniformBuffer, device);
     }

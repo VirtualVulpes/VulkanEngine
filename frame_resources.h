@@ -2,6 +2,7 @@
 
 #include "mesh.h"
 
+class GraphicsPipeline;
 class Object;
 class ImageResource;
 
@@ -32,18 +33,18 @@ public:
 
     void beginFrame(const vk::raii::Device& device);
 
-    void recordCommandBuffer(vk::Pipeline graphicsPipeline,
-                             vk::PipelineLayout pipelineLayout,
-                             vk::DescriptorSet frameDescriptorSet,
+    void recordCommandBuffer(vk::DescriptorSet frameDescriptorSet,
                              RenderTarget renderTarget,
                              uint32_t frameIndex,
-                             std::span<const Object* const> objects) const;
+                             std::span<const Object * const> objects);
 
     void resetCommandBuffer() { commandBuffer_.reset(); }
 
-    void updateFrameData(const FrameData& data) const;
+    void updateFrameData(const FrameData& data);
 
 private:
+    void endRendering(RenderTarget target);
+
     vk::raii::CommandBuffer commandBuffer_{nullptr};
     vk::raii::Semaphore presentCompleteSemaphore_{nullptr};
     vk::raii::Fence inFlightFence_{nullptr};

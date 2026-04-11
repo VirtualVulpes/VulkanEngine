@@ -165,15 +165,29 @@ endif()
 set (SHADER_TARGET ${TEMPLATE_NAME}Shader)
 set (SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 set (SHADER_SOURCES "${SHADERS_DIR}/shader.slang")
-set (ENTRY_POINTS -entry vertMain -entry fragMain)
-add_custom_command(
-        OUTPUT  ${SHADERS_DIR}/slang.spv
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADERS_DIR}
-        COMMAND ${SLANGC_EXECUTABLE} ${SHADER_SOURCES} -target spirv -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name ${ENTRY_POINTS} -o ${SHADERS_DIR}/slang.spv
-        WORKING_DIRECTORY ${SHADERS_DIR}
-        DEPENDS ${SHADER_SOURCES}
-        COMMENT "Compiling Slang Shaders"
-        VERBATIM
-)
-add_custom_target(${SHADER_TARGET} ALL DEPENDS ${SHADERS_DIR}/slang.spv)
+file(GLOB SHADER_SOURCES "${SHADERS_DIR}/*.vert.slang" "${SHADERS_DIR}/*.frag.slang")
+
+set(COMPILED_SHADERS)
+foreach(SHADER ${SHADER_SOURCES})
+    get_filename_component(SHADER_FILENAME ${SHADER} NAME)
+    string(REGEX REPLACE "\\.slang$" "" SHADER_FULL_NAME ${SHADER_FILENAME})
+    set(OUTPUT "${SHADERS_DIR}/${SHADER_FULL_NAME}.spv")
+
+    string(REGEX MATCH "[^.]+$" STAGE ${SHADER_FULL_NAME})
+    set(ENTRY "${STAGE}Main")
+
+    add_custom_command(
+            OUTPUT ${OUTPUT}
+            COMMAND ${SLANGC_EXECUTABLE} ${SHADER} -target spirv -profile spirv_1_4
+            -emit-spirv-directly -fvk-use-entrypoint-name
+            -entry ${ENTRY}
+            -o ${OUTPUT}
+            DEPENDS ${SHADER}
+            COMMENT "Compiling ${SHADER_FULL_NAME}.slang"
+            VERBATIM
+    )
+    list(APPEND COMPILED_SHADERS ${OUTPUT})
+endforeach()
+
+add_custom_target(${SHADER_TARGET} ALL DEPENDS ${COMPILED_SHADERS})
 add_dependencies(${TEMPLATE_NAME} ${SHADER_TARGET})

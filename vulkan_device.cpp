@@ -62,6 +62,7 @@ void VulkanDevice::findPhysicalDevice(const vk::raii::Instance& instance, const 
         >();
 
         bool supportsRequiredFeatures =
+                features.get<vk::PhysicalDeviceFeatures2>().features.fillModeNonSolid &&
                 features.get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy &&
                 features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
                 features.get<vk::PhysicalDeviceVulkan12Features>().runtimeDescriptorArray &&
@@ -93,7 +94,7 @@ void VulkanDevice::createLogicalDevice() {
                 vk::PhysicalDeviceVulkan13Features,
                 vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
             requiredFeatures = {
-                {.features = {.samplerAnisotropy = true}},
+                {.features = {.fillModeNonSolid = true, .samplerAnisotropy = true}},
                 {.shaderDrawParameters = true},
                 {.runtimeDescriptorArray = true},
                 {.synchronization2 = true, .dynamicRendering = true},
