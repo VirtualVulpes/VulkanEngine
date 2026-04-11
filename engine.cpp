@@ -56,7 +56,7 @@ namespace {
 Engine::Engine() : glfwManager_(),
                    instance_(createInstance()),
                    debugMessenger_(createDebugMessenger()),
-                   window_({100, 100}, {Config::WindowWidth, Config::WindowHeight}, "Vulkan Engine", instance_),
+                   window_({Config::WindowWidth, Config::WindowHeight}, "Vulkan Engine", instance_, Config::Fullscreen),
                    input_(window_.getInputManager()),
                    device_(instance_, window_.getSurface()),
                    swapChain_(window_.getSurface(), window_.getFramebufferSize(), device_),

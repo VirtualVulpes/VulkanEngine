@@ -2,15 +2,19 @@
 
 #include "glfw_input_translator.h"
 
-Window::Window(glm::ivec2 windowPos, glm::ivec2 windowSize, const std::string& title,
-               const vk::raii::Instance& instance) : windowPos_(windowPos), windowSize_(windowSize),
-                                                     window_(createHandle(title)), input_(getMousePosition()) {
+Window::Window(glm::ivec2 windowSize, const std::string& title,
+               const vk::raii::Instance& instance, bool fullscreen) : windowSize_(windowSize),
+                                                                      windowPos_(getDefaultPosition()),
+                                                                      window_(createHandle(title)),
+                                                                      input_(getMousePosition()) {
     VkSurfaceKHR rawSurface;
     if (glfwCreateWindowSurface(*instance, window_, nullptr, &rawSurface) != VK_SUCCESS) {
         throw std::runtime_error("failed to create window surface");
     }
     surface_ = vk::raii::SurfaceKHR(instance, rawSurface);
     registerCallbacks();
+
+    if (fullscreen) setBorderlessFullscreen();
 }
 
 GLFWwindow* Window::createHandle(const std::string& title) {
@@ -19,23 +23,10 @@ GLFWwindow* Window::createHandle(const std::string& title) {
 
     GLFWwindow* window = glfwCreateWindow(windowSize_.x, windowSize_.y, title.c_str(), nullptr,
                                           nullptr);
+    glfwSetWindowPos(window, windowPos_.x, windowPos_.y);
 
     glfwSetWindowUserPointer(window, this);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-    glfwSetFramebufferSizeCallback(window, [](GLFWwindow* rawWindow, int width, int height) {
-        auto* pWindow = static_cast<Window *>(glfwGetWindowUserPointer(rawWindow));
-        pWindow->resizePending_ = true;
-    });
-
-    glfwSetWindowFocusCallback(window, [](GLFWwindow* rawWindow, int focused) {
-        auto* pWindow = static_cast<Window *>(glfwGetWindowUserPointer(rawWindow));
-        if (!focused) {
-            pWindow->isFocused_ = false;
-            glfwSetInputMode(pWindow->getRawWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            pWindow->input_.reset();
-        }
-    });
 
     return window;
 }
@@ -74,14 +65,12 @@ void Window::setWindowed() {
 }
 
 void Window::setBorderlessFullscreen() {
-    updateWindowLayout();
-    GLFWmonitor* monitor = getActiveMonitor();
-    if (!monitor) return;
-
     isFullscreen_ = true;
+    updateWindowLayout();
 
     glfwSetWindowAttrib(window_, GLFW_DECORATED, GLFW_FALSE);
 
+    GLFWmonitor* monitor = getActiveMonitor();
     int mx, my;
     glfwGetMonitorPos(monitor, &mx, &my);
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
@@ -133,14 +122,38 @@ GLFWmonitor* Window::getActiveMonitor() const {
     return glfwGetPrimaryMonitor();
 }
 
+glm::ivec2 Window::getDefaultPosition() const {
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    int mPosX, mPosY;
+    glfwGetMonitorPos(monitor, &mPosX, &mPosY);
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+    // place window at the center of the monitor
+    return {mPosX + (mode->width - windowSize_.x) / 2, mPosY + (mode->height - windowSize_.y) / 2};
+}
+
 void Window::updateWindowLayout() {
     glfwGetWindowSize(window_, &windowSize_.x, &windowSize_.y);
     glfwGetWindowPos(window_, &windowPos_.x, &windowPos_.y);
 }
 
 void Window::registerCallbacks() {
+    glfwSetFramebufferSizeCallback(window_, [](GLFWwindow* rawWindow, int width, int height) {
+        auto* pWindow = static_cast<Window *>(glfwGetWindowUserPointer(rawWindow));
+        pWindow->resizePending_ = true;
+    });
+
+    glfwSetWindowFocusCallback(window_, [](GLFWwindow* rawWindow, int focused) {
+        auto* pWindow = static_cast<Window *>(glfwGetWindowUserPointer(rawWindow));
+        if (!focused) {
+            pWindow->isFocused_ = false;
+            glfwSetInputMode(rawWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            pWindow->input_.reset();
+        }
+    });
+
     glfwSetKeyCallback(window_, [](GLFWwindow* rawWindow, int key, int scancode, int action, int mods) {
-        auto* pWindow = static_cast<Window*>(glfwGetWindowUserPointer(rawWindow));
+        auto* pWindow = static_cast<Window *>(glfwGetWindowUserPointer(rawWindow));
         if (!pWindow->isFocused()) return;
 
         pWindow->getInputManager().onKeyEvent(glfw::toKey(key), glfw::toAction(action));
@@ -159,7 +172,7 @@ void Window::registerCallbacks() {
     });
 
     glfwSetCursorPosCallback(window_, [](GLFWwindow* rawWindow, double xpos, double ypos) {
-        auto* pWindow = static_cast<Window*>(glfwGetWindowUserPointer(rawWindow));
+        auto* pWindow = static_cast<Window *>(glfwGetWindowUserPointer(rawWindow));
         if (!pWindow->isFocused()) return;
 
         pWindow->getInputManager().onMouseMove(glm::dvec2{xpos, ypos});

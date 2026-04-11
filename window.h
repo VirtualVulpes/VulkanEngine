@@ -7,7 +7,7 @@
 
 class Window {
 public:
-    Window(glm::ivec2 windowPos, glm::ivec2 windowSize, const std::string& title, const vk::raii::Instance& instance);
+    Window(glm::ivec2 windowSize, const std::string& title, const vk::raii::Instance& instance, bool fullscreen);
 
     const vk::raii::SurfaceKHR& getSurface() const { return surface_; }
 
@@ -29,8 +29,6 @@ public:
 
     void close() { glfwSetWindowShouldClose(window_, true); }
 
-    GLFWwindow* getRawWindow() { return window_; }
-
     bool isFocused() { return isFocused_; }
 
     void setFocused();
@@ -47,17 +45,18 @@ private:
     void setBorderlessFullscreen();
 
     GLFWmonitor* getActiveMonitor() const;
+    glm::ivec2 getDefaultPosition() const;
 
     void updateWindowLayout();
     void registerCallbacks();
 
-    glm::ivec2 windowPos_;
     glm::ivec2 windowSize_;
+    glm::ivec2 windowPos_;
+    bool isFullscreen_{false};
 
     GLFWwindow* window_;
     vk::raii::SurfaceKHR surface_{nullptr};
     bool resizePending_{false};
-    bool isFullscreen_{false};
     bool isFocused_{true};
 
     InputManager input_;
